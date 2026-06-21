@@ -1,0 +1,34 @@
+package com.sample.system.reporting.service.domain.exception;
+
+import lombok.Getter;
+
+@Getter
+public enum ErrorCode {
+    GENERAL_ERROR("1"),
+    INVALID_INPUT_PARAMETER("2"),
+    REPORT_DEFINITION_REQUIRED("3"),
+    REPORT_DEFINITION_NOT_FOUND("4"),
+    REPORT_DEFINITION_DUPLICATE("5"),
+    REPORT_DEFINITION_ID_REQUIRED("6"),
+    REPORT_CODE_REQUIRED("7"),
+    REPORT_NAME_REQUIRED("8"),
+    REPORT_DEFINITION_INACTIVE("9"),
+    REPORT_SQL_QUERY_REQUIRED("10"),
+    REPORT_SQL_QUERY_NOT_ALLOWED("11"),
+    REPORT_PARAMETER_REQUIRED("12"),
+    REPORT_PARAMETER_INVALID("13"),
+    REPORT_PARAMETER_UNKNOWN("14"),
+    REPORT_EXECUTION_NOT_FOUND("15"),
+    REPORT_EXECUTION_FAILED("16"),
+    REPORT_PARAMETER_NOT_FOUND("17"),
+    REPORT_PARAMETER_DUPLICATE("18"),
+    REPORT_TEMPLATE_NOT_FOUND("19"),
+    REPORT_TEMPLATE_DUPLICATE("20"),
+    VALIDATION_RULE_NOT_FOUND("21");
+
+    private final String code;
+
+    ErrorCode(String code) {
+        this.code = code;
+    }
+}
