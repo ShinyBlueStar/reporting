@@ -1,0 +1,54 @@
+server:
+  port: 8021
+
+spring:
+  application:
+    name: reporting-service
+  main:
+    allow-bean-definition-overriding: true
+
+eureka:
+  client:
+    # Service discovery is opt-in: set EUREKA_CLIENT_ENABLED=true (and EUREKA_URL) to register.
+    enabled: ${EUREKA_CLIENT_ENABLED:false}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: when-authorized
+  metrics:
+    tags:
+      application: ${spring.application.name}
+  prometheus:
+    metrics:
+      export:
+        enabled: true
+
+logging:
+  # Every log line carries the correlation id set by RequestCorrelationFilter (MDC key: requestId).
+  pattern:
+    correlation: "[%X{requestId:-}] "
+  level:
+    root: ${LOG_LEVEL_ROOT:INFO}
+    com.sample.system: ${LOG_LEVEL_APP:INFO}
+
+application:
+  version: 1.0.0
+
+---
+# Activate with SPRING_PROFILES_ACTIVE=...,json to emit structured (ECS) JSON logs on stdout
+# for Filebeat/Logstash/Fluent Bit -> Elasticsearch (ELK).
+spring:
+  config:
+    activate:
+      on-profile: json
+logging:
+  structured:
+    format:
+      console: ecs
