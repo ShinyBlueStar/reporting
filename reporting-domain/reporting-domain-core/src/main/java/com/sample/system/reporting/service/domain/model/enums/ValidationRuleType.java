@@ -1,0 +1,31 @@
+package com.sample.system.reporting.service.domain.model.enums;
+
+public enum ValidationRuleType {
+    REQUIRED,
+    AT_LEAST_ONE_REQUIRED,
+    ALL_OR_NONE,
+    EXACTLY_ONE,
+    DATE_RANGE,
+    MAX_DATE_RANGE,
+    GREATER_THAN,
+    LESS_THAN,
+    BETWEEN,
+    MAX_LENGTH,
+    MIN_LENGTH,
+    FIXED_LENGTH,
+    REGEX,
+    POSITIVE,
+    NEGATIVE,
+    NUMBER_RANGE,
+    PAST_DATE,
+    FUTURE_DATE,
+    DATE_DIFF,
+    IN_LIST,
+    NOT_IN_LIST,
+    REQUIRED_IF,
+    FORBIDDEN_IF,
+    UNIQUE,
+    EXISTS,
+    NOT_EXISTS,
+    CUSTOM_EXPRESSION
+}
