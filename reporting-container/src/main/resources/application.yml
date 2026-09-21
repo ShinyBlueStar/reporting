@@ -41,6 +41,23 @@ logging:
 application:
   version: 1.0.0
 
+reporting:
+  storage:
+    # s3 (default, any S3-compatible store) | local (development/tests only: not shared between instances)
+    type: ${REPORTING_STORAGE_TYPE:s3}
+    # Staging directory: reports are generated here, then uploaded to the bucket and removed.
+    local-path: ${REPORTING_STAGING_PATH:report-output}
+    s3:
+      endpoint: ${S3_ENDPOINT:}
+      region: ${S3_REGION:us-east-1}
+      access-key: ${S3_ACCESS_KEY:}
+      secret-key: ${S3_SECRET_KEY:}
+      bucket: ${S3_BUCKET:reporting-service}
+      path-style-access: ${S3_PATH_STYLE_ACCESS:true}
+      create-bucket-if-missing: ${S3_CREATE_BUCKET:true}
+      server-side-encryption: ${S3_SSE_ENABLED:false}
+      retention-days: ${REPORTING_FILE_RETENTION_DAYS:2}
+
 ---
 # Activate with SPRING_PROFILES_ACTIVE=...,json to emit structured (ECS) JSON logs on stdout
 # for Filebeat/Logstash/Fluent Bit -> Elasticsearch (ELK).
