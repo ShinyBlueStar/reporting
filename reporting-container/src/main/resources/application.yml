@@ -6,6 +6,16 @@ spring:
     name: reporting-service
   main:
     allow-bean-definition-overriding: true
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME:guest}
+    password: ${RABBITMQ_PASSWORD:guest}
+    ui-url: ${RABBITMQ_UI_URL:http://localhost:15672}
+    listener:
+      simple:
+        acknowledge-mode: manual
+        default-requeue-rejected: false
 
 eureka:
   client:
@@ -42,6 +52,24 @@ application:
   version: 1.0.0
 
 reporting:
+  rabbitmq:
+    retry:
+      max-attempts: ${RABBITMQ_RETRY_MAX_ATTEMPTS:3}
+      delay-ms: ${RABBITMQ_RETRY_DELAY_MS:30000}
+    exchange: banking.integration.events
+    dead-letter-exchange: banking.integration.dlx
+    queues:
+      party: reporting.party.events
+      card: reporting.card.events
+      loan: reporting.loan.events
+      accounting: reporting.accounting.events
+      product: reporting.product.events
+    routing-keys:
+      party: party.events
+      card: card.events
+      loan: loan.events
+      accounting: accounting.events
+      product: product.events
   storage:
     # s3 (default, any S3-compatible store) | local (development/tests only: not shared between instances)
     type: ${REPORTING_STORAGE_TYPE:s3}
