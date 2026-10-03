@@ -70,6 +70,15 @@ reporting:
       loan: loan.events
       accounting: accounting.events
       product: product.events
+  scheduler:
+    fixed-delay-ms: ${REPORTING_SCHEDULER_DELAY_MS:60000}
+  file-cleanup:
+    # Removes leftover staged files; objects in S3 expire through the bucket lifecycle rule.
+    retention-days: ${REPORTING_FILE_RETENTION_DAYS:2}
+    cron: "0 0 0 * * *"
+    zone: ${REPORTING_CLEANUP_ZONE:UTC}
+  batch:
+    chunk-size: 1000
   storage:
     # s3 (default, any S3-compatible store) | local (development/tests only: not shared between instances)
     type: ${REPORTING_STORAGE_TYPE:s3}
