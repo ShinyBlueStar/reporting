@@ -1,0 +1,125 @@
+---
+title: ReportExecution
+---
+classDiagram
+    direction TB
+
+    class ReportExecutionController {
+        <<Controller>>
+        @{RestController}
+        @{Tag(name = "Report Execution", description = "اجرای گزارش با پارامترهای ورودی")}
+        @{RequestMapping("/api/v1/report-execution")}
+        -ReportExecutionExecuteCommandHandler reportExecutionExecuteCommandHandler
+        -ReportExecutionFindByIdCommandHandler reportExecutionFindByIdCommandHandler
+        -ReportExecutionDownloadCommandHandler reportExecutionDownloadCommandHandler
+        +executeReport(@RequestBody @Valid ExecuteReportCommand command) ResponseEntity<StandardResponse<ExecuteReportResponse>>
+        +downloadReportFile(@PathVariable Long reportExecutionId) ResponseEntity<byte[]>
+        +findReportExecutionById(@RequestBody @Valid FindReportExecutionByIdCommand command) ResponseEntity<StandardResponse<FindReportExecutionResponse>>
+    }
+
+    class ExecuteReportCommand {
+        <<Command>>
+        @{NotNull}
+        -Long reportDefinitionCode
+        -String requestedBy
+        -String reportFormat
+        -Map<String, String> parameters
+    }
+
+    class FindReportExecutionByIdCommand {
+        <<Command>>
+        @{NotNull}
+        -Long reportExecutionCode
+    }
+
+    class ReportExecutionDownloadCommandHandler {
+        <<UseCase>>
+        @{Component}
+        -ReportExecutionService reportExecutionService
+        +downloadReportFile(Long reportExecutionId) ReportFileDownloadResponse
+    }
+
+    class ReportExecutionExecuteCommandHandler {
+        <<UseCase>>
+        @{Component}
+        -ReportExecutionService reportExecutionService
+        +executeReport(ExecuteReportCommand command) ExecuteReportResponse
+    }
+
+    class ReportExecutionFindByIdCommandHandler {
+        <<UseCase>>
+        @{Component}
+        -ReportExecutionService reportExecutionService
+        -ReportExecutionMapper reportExecutionMapper
+        +findReportExecutionById(FindReportExecutionByIdCommand command) FindReportExecutionResponse
+    }
+
+    class ReportExecutionUrlFactory {
+        <<class>>
+        @{Component}
+        @{Value("${reporting.api.public-base-url:http://localhost:8022}")}
+        -String publicBaseUrl
+        +downloadUrl(Long reportExecutionId) String
+        -trimTrailingSlash(String value) String
+    }
+
+    class ReportParameterBindingService {
+        <<class>>
+        @{Component}
+        -int PREVIEW_ROW_LIMIT
+        -ObjectMapper objectMapper
+        +previewRowLimit() int
+        +resolveAndValidate(List<ReportParameter> definitions, Map<String, String> input) Map<String, Object>
+        +toJson(Map<String, ?> parameters) String
+        -validateRegex(ReportParameter definition, String value) void
+        -coerceValue(String parameterType, String value) Object
+    }
+
+    class ReportSqlGuard {
+        <<class>>
+        @{Component}
+        +ensureSelectableQuery(String sql) void
+    }
+
+    class ExecuteReportResponse {
+        <<DTO>>
+        @{JsonInclude(JsonInclude.Include.NON_NULL)}
+        -Long reportExecutionCode
+        -Long reportDefinitionCode
+        -String reportCode
+        -String executionStatus
+        -Long totalRecordCount
+        -Long executionDurationMs
+        -Long generatedFileId
+        -String reportFormat
+        -String downloadUrl
+        -String errorMessage
+        -String executionSource
+        -String correlationId
+        ..truncated..
+    }
+
+    class FindReportExecutionResponse {
+        <<DTO>>
+        @{JsonInclude(JsonInclude.Include.NON_NULL)}
+        -Long reportExecutionCode
+        -Long reportDefinitionCode
+        -String executionStatus
+        -Timestamp executionStartTime
+        -Timestamp executionEndTime
+        -Long executionDurationMs
+        -Long totalRecordCount
+        -String requestedBy
+        -String requestParameters
+        -Long generatedFileId
+        -String errorMessage
+        -String executionSource
+        ..truncated..
+    }
+
+    class ReportFileDownloadResponse {
+        <<DTO>>
+        -byte[] content
+        -String fileName
+        -String contentType
+    }

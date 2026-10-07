@@ -1,0 +1,263 @@
+@startuml
+title reporting-service — BatchProcessing
+skinparam classAttributeIconSize 0
+skinparam linetype ortho
+hide empty members
+
+class ReportBatchJobConfiguration <<Configuration>> {
+  .. annotations ..
+  Configuration
+  EnableBatchProcessing
+  Bean
+  Bean
+  Bean
+  StepScope
+  -- fields --
+  +REPORT_EXECUTION_BATCH_JOB: String
+  +REPORT_EXECUTION_BATCH_STEP: String
+  -- methods --
+  +reportExecutionBatchJob(JobRepository jobRepository, Step reportExecutionBatchStep): Job
+  +reportExecutionBatchStep(JobRepository jobRepository, PlatformTransactionManager transactionManager, ReportBatchProperties properties, ReportBatchStepCompletionListener stepCompletionListener, ItemStreamReader<Object> reportBatchItemReader, ItemProcessor<Object, Object> reportBatchItemProcessor, ItemWriter<Object> reportBatchItemWriter): Step
+  +reportBatchContext(ReportBatchContextFactory contextFactory, ReportBatchSharedStateRegistry sharedStateRegistry, @Value("#{jobParameters}"): ReportBatchContext
+  +reportBatchItemReader(ReportBatchComponentRegistry registry, ReportBatchContext reportBatchContext): ItemStreamReader<Object>
+  +reportBatchItemProcessor(ReportBatchComponentRegistry registry, ReportBatchContext reportBatchContext): ItemProcessor<Object, Object>
+  +reportBatchItemWriter(ReportBatchComponentRegistry registry, ReportBatchContext reportBatchContext): ItemWriter<Object>
+}
+
+class ReportBatchProperties <<Configuration>> {
+  .. annotations ..
+  Component
+  ConfigurationProperties(prefix = "reporting.batch")
+  -- fields --
+  -chunkSize: int
+}
+
+interface ReportBatchProcessor <<Port>> {
+}
+
+interface ReportBatchReader <<Port>> {
+}
+
+interface ReportBatchWriter <<Port>> {
+}
+
+class ReportBatchContext <<Model>> {
+  -- fields --
+  -reportDefinition: ReportDefinition
+  -reportExecution: ReportExecution
+  -reportFormat: ReportFormat
+  -parameters: Map<String, Object>
+  -chunkSize: int
+  -exportMode: boolean
+  -sharedState: ConcurrentMap<String, Object>
+}
+
+class ReportBatchJobParameterKeys <<Model>> {
+  -- fields --
+  +REPORT_DEFINITION_ID: String
+  +REPORT_EXECUTION_ID: String
+  +REPORT_FORMAT: String
+  +PARAMETERS_JSON: String
+  +CHUNK_SIZE: String
+  +EXPORT_MODE: String
+}
+
+class ReportBatchLaunchRequest <<Model>> {
+  -- fields --
+  -reportDefinition: ReportDefinition
+  -reportExecution: ReportExecution
+  -reportFormat: ReportFormat
+  -parameters: Map<String, Object>
+  -chunkSize: int
+  -exportMode: boolean
+}
+
+class ReportBatchSharedStateKeys <<Model>> {
+  -- fields --
+  +REPORT_TEMPLATE: String
+  +COLUMN_NAMES: String
+  +PROCESSED_ROW_COUNT: String
+  +PREVIEW_ROWS: String
+  +ACCUMULATED_ROWS: String
+  +FORMAT_RESULT: String
+  +EXPORT_MODE: String
+  +REPORT_DEFINITION: String
+  +REPORT_EXECUTION: String
+  +REPORT_FORMAT: String
+  +PARAMETERS: String
+}
+
+class ReportBatchContextFactory <<Model>> {
+  .. annotations ..
+  Component
+  -- fields --
+  -reportDefinitionService: ReportDefinitionService
+  -reportExecutionRepository: IReportExecutionRepository
+  -objectMapper: ObjectMapper
+  -- methods --
+  +create(ConcurrentMap<String, Object> jobParameters): ReportBatchContext
+  -asLong(ConcurrentMap<String, Object> jobParameters, String key): Long
+  -asInt(ConcurrentMap<String, Object> jobParameters, String key): int
+  -asString(ConcurrentMap<String, Object> jobParameters, String key): String
+  -asBoolean(ConcurrentMap<String, Object> jobParameters, String key): boolean
+  -parameters(String parametersJson): Map<String, Object>
+}
+
+class ReportBatchFormatResolver <<Model>> {
+  .. annotations ..
+  Component
+  -- fields --
+  -SUPPORTED_EXPORT_FORMATS: Set<ReportFormat>
+  -- methods --
+  +resolve(ExecuteReportCommand command, ReportDefinition definition): ReportFormat
+  +isExportRequested(ExecuteReportCommand command): boolean
+  -validateAllowedFormat(ReportDefinition definition, ReportFormat format): void
+}
+
+class BatchReportLauncherAdapter <<Configuration>> {
+  .. annotations ..
+  Component
+  -- fields --
+  -jobLauncher: JobLauncher
+  -reportExecutionBatchJob: Job
+  -objectMapper: ObjectMapper
+  -sharedStateRegistry: ReportBatchSharedStateRegistry
+  -- methods --
+  +launch(ReportBatchLaunchRequest request): ConcurrentMap<String, Object>
+  -isUnsuccessful(JobExecution jobExecution): boolean
+  -failureMessage(JobExecution jobExecution): String
+}
+
+class DelegatingReportItemProcessor <<Configuration>> {
+  -- fields --
+  -delegate: ReportBatchProcessor<Object, Object>
+  -context: ReportBatchContext
+  -- methods --
+  +process(Object item): Object
+}
+
+class DelegatingReportItemReader <<Configuration>> {
+  -- fields --
+  -delegate: ReportBatchReader<Object>
+  -context: ReportBatchContext
+  -- methods --
+  +open(ExecutionContext executionContext): void
+  +read(): Object
+  +close(): void
+}
+
+class DelegatingReportItemWriter <<Configuration>> {
+  -- fields --
+  -delegate: ReportBatchWriter<Object>
+  -context: ReportBatchContext
+  -- methods --
+  +write(Chunk<? extends Object> chunk): void
+}
+
+class GenericReportBatchProcessor <<Configuration>> {
+  .. annotations ..
+  Component
+  SuppressWarnings("unchecked")
+  -- fields --
+  -DEFAULT_MAX_EXPORT_ROWS: long
+  -- methods --
+  +supports(ReportDefinition reportDefinition): boolean
+  +process(Map<String, Object> item, ReportBatchContext context): Map<String, Object>
+  -enforceExportLimit(long processedCount, ReportDefinition definition): void
+  -accumulateRows(Map<String, Object> item, ReportBatchContext context): void
+}
+
+class GenericReportBatchWriter <<Configuration>> {
+  .. annotations ..
+  Component
+  -- methods --
+  +supports(ReportDefinition reportDefinition, ReportFormat reportFormat): boolean
+  +write(List<? extends Map<String, Object>> items, ReportBatchContext context): void
+}
+
+class JdbcReportBatchReader <<Configuration>> {
+  .. annotations ..
+  Component
+  SuppressWarnings("unchecked")
+  -- fields --
+  -DEFAULT_MAX_PREVIEW_ROWS: int
+  -dataSource: DataSource
+  -reportTemplateRepository: IReportTemplateRepository
+  -reportSqlGuard: ReportSqlGuard
+  -sharedState: ConcurrentMap<String, Object>
+  -previewLimit: int
+  -connection: Connection
+  -preparedStatement: PreparedStatement
+  -resultSet: ResultSet
+  -columnCount: int
+  -readCount: long
+  -- methods --
+  +supports(ReportDefinition reportDefinition): boolean
+  +open(ReportBatchContext context): void
+  +read(): Map<String, Object>
+  +close(): void
+  -appendPreviewRow(Map<String, Object> row): void
+  -storeColumnNamesIfNeeded(Map<String, Object> row): void
+  -mapRow(ResultSet rs): Map<String, Object>
+  -previewLimit(ReportDefinition definition): int
+  -applyQueryTimeout(PreparedStatement statement, Integer timeoutSeconds): void
+  -bindParameters(PreparedStatement statement, Object[] paramValues): void
+  -closeQuietly(): void
+}
+
+class ReportBatchComponentRegistry <<Configuration>> {
+  .. annotations ..
+  Component
+  SuppressWarnings("unchecked")
+  SuppressWarnings("unchecked")
+  SuppressWarnings("unchecked")
+  -- fields --
+  -readers: List<ReportBatchReader<?>>
+  -processors: List<ReportBatchProcessor<?, ?>>
+  -writers: List<ReportBatchWriter<?>>
+  -- methods --
+  +readerFor(ReportDefinition definition): ReportBatchReader<I>
+  +processorFor(ReportDefinition definition): ReportBatchProcessor<I, O>
+  +writerFor(ReportDefinition definition, ReportFormat format): ReportBatchWriter<O>
+  -missingComponent(String component, String reportCode): ReportingDomainException
+}
+
+class ReportBatchSharedStateRegistry <<Configuration>> {
+  .. annotations ..
+  Component
+  -- fields --
+  -states: ConcurrentHashMap<Long, ConcurrentMap<String, Object>>
+  -- methods --
+  +bind(Long reportExecutionId, ConcurrentMap<String, Object> sharedState): void
+  +release(Long reportExecutionId): ConcurrentMap<String, Object>
+  +get(Long reportExecutionId): ConcurrentMap<String, Object>
+}
+
+class ReportBatchStepCompletionListener <<Configuration>> {
+  .. annotations ..
+  Component
+  Value("${reporting.storage.local-path:report-output}")
+  Value("${reporting.storage.bucket:reporting-service}")
+  SuppressWarnings("unchecked")
+  SuppressWarnings("unchecked")
+  -- fields --
+  -sharedStateRegistry: ReportBatchSharedStateRegistry
+  -reportFormatService: ReportFormatService
+  -reportFileRepository: ReportFileRepository
+  -localStoragePath: Path
+  -bucketName: String
+  -- methods --
+  +afterStep(StepExecution stepExecution): ExitStatus
+  -storeResult(Long reportExecutionId, ReportFormatResult result): ReportFileEntity
+  -sanitizeFileName(String value): String
+  -sha256(byte[] content): String
+}
+
+class ReportJdbcValueConverter <<Configuration>> {
+  -- methods --
+  +convert(Object value): Object
+  -convertOracleValue(Object value): Object
+  -readClob(Clob clob): String
+}
+
+@enduml

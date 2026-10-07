@@ -1,0 +1,219 @@
+@startuml
+title reporting-service — ReportDefinition
+skinparam classAttributeIconSize 0
+skinparam linetype ortho
+hide empty members
+
+class ReportDefinitionController <<Controller>> {
+  .. annotations ..
+  RestController
+  Tag(name = "Report Definitions", description = "مدیریت تعریف گزارش‌ها")
+  RequestMapping("/api/v1/report-definition")
+  PostMapping
+  RequestBody
+  Valid
+  -- fields --
+  -reportDefinitionCreateCommandHandler: ReportDefinitionCreateCommandHandler
+  -reportDefinitionUpdateCommandHandler: ReportDefinitionUpdateCommandHandler
+  -reportDefinitionFindByIdCommandHandler: ReportDefinitionFindByIdCommandHandler
+  -reportDefinitionSearchCommandHandler: ReportDefinitionSearchCommandHandler
+  -reportDefinitionDeleteCommandHandler: ReportDefinitionDeleteCommandHandler
+  -reportDefinitionStatusUpdateCommandHandler: ReportDefinitionStatusUpdateCommandHandler
+  -- methods --
+  +createReportDefinition(@RequestBody @Valid CreateReportDefinitionCommand command): ResponseEntity<StandardResponse<CreateReportDefinitionResponse>>
+  +updateReportDefinition(@RequestBody @Valid UpdateReportDefinitionCommand command): ResponseEntity<StandardResponse<UpdateReportDefinitionResponse>>
+  +findReportDefinitionById(@RequestBody @Valid FindReportDefinitionByIdCommand command): ResponseEntity<StandardResponse<FindReportDefinitionResponse>>
+  +searchReportDefinitions(@RequestBody SearchReportDefinitionCommand command): ResponseEntity<StandardResponse<SearchReportDefinitionResponse<FindReportDefinitionResponse>>>
+  +deleteReportDefinition(@RequestBody @Valid DeleteReportDefinitionCommand command): ResponseEntity<StandardResponse<DeleteReportDefinitionResponse>>
+  +updateReportDefinitionStatus(@RequestBody @Valid UpdateReportDefinitionStatusCommand command): ResponseEntity<StandardResponse<UpdateReportDefinitionResponse>>
+}
+
+class CreateReportDefinitionCommand <<Command>> {
+  .. annotations ..
+  NotBlank
+  NotBlank
+  Positive
+  -- fields --
+  -reportCode: String
+  -reportName: String
+  -reportDescription: String
+  -categoryId: Long
+  -sqlQuery: String
+  -allowExcel: Boolean
+  -allowPdf: Boolean
+  -allowCsv: Boolean
+  -timeoutSeconds: Integer
+  -active: Boolean
+  -version: Long
+  -reportType: String
+  -maxExportRows: Long
+}
+
+class DeleteReportDefinitionCommand <<Command>> {
+  .. annotations ..
+  NotNull
+  -- fields --
+  -reportDefinitionCode: Long
+}
+
+class FindReportDefinitionByIdCommand <<Command>> {
+  .. annotations ..
+  NotNull
+  -- fields --
+  -reportDefinitionCode: Long
+}
+
+class SearchReportDefinitionCommand <<Command>> {
+  -- fields --
+  -reportCode: String
+  -reportName: String
+  -categoryId: Long
+  -categoryName: String
+  -reportType: String
+  -active: Boolean
+}
+
+class UpdateReportDefinitionCommand <<Command>> {
+  .. annotations ..
+  NotNull
+  NotBlank
+  NotBlank
+  Positive
+  -- fields --
+  -reportDefinitionCode: Long
+  -reportCode: String
+  -reportName: String
+  -reportDescription: String
+  -categoryId: Long
+  -sqlQuery: String
+  -allowExcel: Boolean
+  -allowPdf: Boolean
+  -allowCsv: Boolean
+  -timeoutSeconds: Integer
+  -active: Boolean
+  -version: Long
+  -reportType: String
+  -maxExportRows: Long
+}
+
+class UpdateReportDefinitionStatusCommand <<Command>> {
+  .. annotations ..
+  NotNull
+  NotNull
+  -- fields --
+  -reportDefinitionCode: Long
+  -active: Boolean
+}
+
+class ReportDefinitionCreateCommandHandler <<UseCase>> {
+  .. annotations ..
+  Component
+  -- fields --
+  -reportDefinitionService: ReportDefinitionService
+  -reportDefinitionMapper: ReportDefinitionMapper
+  -reportSqlGuard: ReportSqlGuard
+  -- methods --
+  +createReportDefinition(CreateReportDefinitionCommand command): CreateReportDefinitionResponse
+}
+
+class ReportDefinitionDeleteCommandHandler <<UseCase>> {
+  .. annotations ..
+  Component
+  -- fields --
+  -reportDefinitionService: ReportDefinitionService
+  -- methods --
+  +deleteReportDefinition(DeleteReportDefinitionCommand command): DeleteReportDefinitionResponse
+}
+
+class ReportDefinitionFindByIdCommandHandler <<UseCase>> {
+  .. annotations ..
+  Component
+  -- fields --
+  -reportDefinitionService: ReportDefinitionService
+  -reportDefinitionMapper: ReportDefinitionMapper
+  -- methods --
+  +findReportDefinitionById(FindReportDefinitionByIdCommand command): FindReportDefinitionResponse
+}
+
+class ReportDefinitionSearchCommandHandler <<UseCase>> {
+  .. annotations ..
+  Component
+  -- fields --
+  -reportDefinitionService: ReportDefinitionService
+  -reportDefinitionMapper: ReportDefinitionMapper
+  -- methods --
+  +searchReportDefinitions(SearchReportDefinitionCommand command): SearchReportDefinitionResponse<FindReportDefinitionResponse>
+}
+
+class ReportDefinitionStatusUpdateCommandHandler <<UseCase>> {
+  .. annotations ..
+  Component
+  -- fields --
+  -reportDefinitionService: ReportDefinitionService
+  -reportDefinitionMapper: ReportDefinitionMapper
+  -- methods --
+  +updateStatus(UpdateReportDefinitionStatusCommand command): UpdateReportDefinitionResponse
+}
+
+class ReportDefinitionUpdateCommandHandler <<UseCase>> {
+  .. annotations ..
+  Component
+  -- fields --
+  -reportDefinitionService: ReportDefinitionService
+  -reportDefinitionMapper: ReportDefinitionMapper
+  -reportSqlGuard: ReportSqlGuard
+  -- methods --
+  +updateReportDefinition(UpdateReportDefinitionCommand command): UpdateReportDefinitionResponse
+}
+
+class CreateReportDefinitionResponse <<DTO>> {
+  .. annotations ..
+  JsonProperty("reportDefinitionCode")
+  -- fields --
+  -reportDefinitionId: Long
+  -message: String
+}
+
+class DeleteReportDefinitionResponse <<DTO>> {
+  -- fields --
+  -reportDefinitionId: Long
+  -message: String
+}
+
+class FindReportDefinitionResponse <<DTO>> {
+  .. annotations ..
+  JsonInclude(JsonInclude.Include.NON_NULL)
+  -- fields --
+  -reportDefinitionCode: Long
+  -reportCode: String
+  -reportName: String
+  -reportDescription: String
+  -categoryId: Long
+  -categoryName: String
+  -sqlQuery: String
+  -allowExcel: Boolean
+  -allowPdf: Boolean
+  -allowCsv: Boolean
+  -timeoutSeconds: Integer
+  -active: Boolean
+  -version: Long
+  -reportType: String
+  -maxExportRows: Long
+}
+
+class SearchReportDefinitionResponse <<DTO>> {
+  -- fields --
+  -items: List<T>
+  -page: int
+  -size: int
+  -totalElements: long
+  -totalPages: int
+}
+
+class UpdateReportDefinitionResponse <<DTO>> {
+  -- fields --
+  -reportDefinitionId: Long
+  -message: String
+}
+
+@enduml

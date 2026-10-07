@@ -1,0 +1,180 @@
+@startuml
+title reporting-service — EventSync
+skinparam classAttributeIconSize 0
+skinparam linetype ortho
+hide empty members
+
+interface ProjectionEventDispatcher <<Port>> {
+}
+
+class ProjectionEventDispatcherImpl {
+  .. annotations ..
+  Service
+  -- fields --
+  -projectionEventHandlers: List<ProjectionEventHandler>
+  -- methods --
+  +dispatch(EventEnvelope eventEnvelope): void
+}
+
+abstract class AbstractProjectionEventHandler {
+  -- fields --
+  -aggregateTypes: String[]
+  -- methods --
+  +supports(EventEnvelope eventEnvelope): boolean
+}
+
+class AccountProjectionEventHandler <<Handler>> {
+  .. annotations ..
+  Component
+  -- fields --
+  -accountReportProjectionService: AccountReportProjectionService
+  -reportingProjectionMapper: ReportingProjectionMapper
+  -- methods --
+  +handle(EventEnvelope eventEnvelope): void
+}
+
+class CardProjectionEventHandler <<Handler>> {
+  .. annotations ..
+  Component
+  -- fields --
+  -cardReportProjectionService: CardReportProjectionService
+  -reportingProjectionMapper: ReportingProjectionMapper
+  -- methods --
+  +handle(EventEnvelope eventEnvelope): void
+}
+
+class InstallmentProjectionEventHandler <<Handler>> {
+  .. annotations ..
+  Component
+  -- fields --
+  -installmentReportProjectionService: InstallmentReportProjectionService
+  -reportingProjectionMapper: ReportingProjectionMapper
+  -- methods --
+  +handle(EventEnvelope eventEnvelope): void
+}
+
+class LoanProjectionEventHandler <<Handler>> {
+  .. annotations ..
+  Component
+  -- fields --
+  -loanReportProjectionService: LoanReportProjectionService
+  -reportingProjectionMapper: ReportingProjectionMapper
+  -- methods --
+  +handle(EventEnvelope eventEnvelope): void
+}
+
+class PartyProjectionEventHandler <<Handler>> {
+  .. annotations ..
+  Component
+  -- fields --
+  -partyReportProjectionService: PartyReportProjectionService
+  -reportingProjectionMapper: ReportingProjectionMapper
+  -- methods --
+  +handle(EventEnvelope eventEnvelope): void
+}
+
+class ProductProjectionEventHandler <<Handler>> {
+  .. annotations ..
+  Component
+  -- fields --
+  -productReportProjectionService: ProductReportProjectionService
+  -reportingProjectionMapper: ReportingProjectionMapper
+  -- methods --
+  +handle(EventEnvelope eventEnvelope): void
+}
+
+interface ProjectionEventHandler <<Handler>> {
+}
+
+class TransactionProjectionEventHandler <<Handler>> {
+  .. annotations ..
+  Component
+  -- fields --
+  -transactionReportProjectionService: TransactionReportProjectionService
+  -reportingProjectionMapper: ReportingProjectionMapper
+  -- methods --
+  +handle(EventEnvelope eventEnvelope): void
+}
+
+class EventEnvelope <<record>> {
+}
+
+class RabbitMqConfiguration <<Configuration>> {
+  .. annotations ..
+  Configuration
+  EnableRabbit
+  Bean
+  Value("${reporting.rabbitmq.exchange:banking.integration.events}")
+  Bean
+  Value("${reporting.rabbitmq.dead-letter-exchange:banking.integration.dlx}")
+  -- methods --
+  +integrationEventsExchange(@Value("${reporting.rabbitmq.exchange:banking.integration.events}"): TopicExchange
+  +deadLetterExchange(@Value("${reporting.rabbitmq.dead-letter-exchange:banking.integration.dlx}"): DirectExchange
+  +partyQueue(@Value("${reporting.rabbitmq.queues.party:reporting.party.events}"): Queue
+  +cardQueue(@Value("${reporting.rabbitmq.queues.card:reporting.card.events}"): Queue
+  +loanQueue(@Value("${reporting.rabbitmq.queues.loan:reporting.loan.events}"): Queue
+  +accountingQueue(@Value("${reporting.rabbitmq.queues.accounting:reporting.accounting.events}"): Queue
+  +productQueue(@Value("${reporting.rabbitmq.queues.product:reporting.product.events}"): Queue
+  +partyBinding(Queue partyQueue, TopicExchange integrationEventsExchange, @Value("${reporting.rabbitmq.routing-keys.party:party.events}"): Binding
+  +cardBinding(Queue cardQueue, TopicExchange integrationEventsExchange, @Value("${reporting.rabbitmq.routing-keys.card:card.events}"): Binding
+  +loanBinding(Queue loanQueue, TopicExchange integrationEventsExchange, @Value("${reporting.rabbitmq.routing-keys.loan:loan.events}"): Binding
+  +accountingBinding(Queue accountingQueue, TopicExchange integrationEventsExchange, @Value("${reporting.rabbitmq.routing-keys.accounting:accounting.events}"): Binding
+  +productBinding(Queue productQueue, TopicExchange integrationEventsExchange, @Value("${reporting.rabbitmq.routing-keys.product:product.events}"): Binding
+  +reportingRabbitListenerContainerFactory(ConnectionFactory connectionFactory): SimpleRabbitListenerContainerFactory
+  -deadLetterQueue(String queueName, String dlxName): Queue
+}
+
+class ReportingEventConsumer <<Consumer>> {
+  .. annotations ..
+  Component
+  RabbitListener(
+            queues = "${reporting.rabbitmq.queues.party:reporting.party.events}",
+            containerFactory = "reportingRabbitListenerContainerFactory"
+    )
+  RabbitListener(
+            queues = "${reporting.rabbitmq.queues.card:reporting.card.events}",
+            containerFactory = "reportingRabbitListenerContainerFactory"
+    )
+  RabbitListener(
+            queues = "${reporting.rabbitmq.queues.loan:reporting.loan.events}",
+            containerFactory = "reportingRabbitListenerContainerFactory"
+    )
+  RabbitListener(
+            queues = "${reporting.rabbitmq.queues.accounting:reporting.accounting.events}",
+            containerFactory = "reportingRabbitListenerContainerFactory"
+    )
+  RabbitListener(
+            queues = "${reporting.rabbitmq.queues.product:reporting.product.events}",
+            containerFactory = "reportingRabbitListenerContainerFactory"
+    )
+  -- fields --
+  -reportingEventProcessor: ReportingEventProcessor
+  -- methods --
+  +consumePartyEvent(Message message, Channel channel): void
+  +consumeCardEvent(Message message, Channel channel): void
+  +consumeLoanEvent(Message message, Channel channel): void
+  +consumeAccountingEvent(Message message, Channel channel): void
+  +consumeProductEvent(Message message, Channel channel): void
+  -consume(Message message, Channel channel): void
+}
+
+class ReportingEventProcessor <<Processor>> {
+  .. annotations ..
+  Component
+  -- fields --
+  -objectMapper: ObjectMapper
+  -reportingSyncService: ReportingSyncService
+  -- methods --
+  +process(String messageBody): void
+}
+
+ProjectionEventDispatcher <|.. ProjectionEventDispatcherImpl
+ProjectionEventHandler <|.. AbstractProjectionEventHandler
+AbstractProjectionEventHandler <|-- AccountProjectionEventHandler
+AbstractProjectionEventHandler <|-- CardProjectionEventHandler
+AbstractProjectionEventHandler <|-- InstallmentProjectionEventHandler
+AbstractProjectionEventHandler <|-- LoanProjectionEventHandler
+AbstractProjectionEventHandler <|-- PartyProjectionEventHandler
+AbstractProjectionEventHandler <|-- ProductProjectionEventHandler
+AbstractProjectionEventHandler <|-- TransactionProjectionEventHandler
+@enduml

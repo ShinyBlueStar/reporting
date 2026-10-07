@@ -1,0 +1,714 @@
+---
+title: Core
+---
+classDiagram
+    direction TB
+
+    class ReportingGlobalExceptionHandler {
+        <<ExceptionHandler>>
+        @{RestControllerAdvice}
+        @{ExceptionHandler(ReportingDomainException.class)}
+        @{ExceptionHandler(ConstraintViolationException.class)}
+        +handleReportingDomainException(ReportingDomainException exception, WebRequest request) ResponseEntity<BaseResponse<ObjectUtils.Null>>
+        +handleConstraintViolation(ConstraintViolationException exception, WebRequest request) ResponseEntity<BaseResponse<ObjectUtils.Null>>
+        #handleMethodArgumentNotValid(MethodArgumentNotValidException ex, org.springframework.http.HttpHeaders headers, org.springframework.http.HttpStatusCode status, WebRequest request) ResponseEntity<Object>
+    }
+
+    class BaseResponse {
+        <<class>>
+        -Boolean success
+        -T data
+        -String trackingId
+        -Long doTimeStamp
+        -ErrorDetail errorDetail
+    }
+
+    class ErrorDetail {
+        <<class>>
+        -String message
+        -String code
+    }
+
+    class ResponseBuilder {
+        <<Utility>>
+        +success(T data) ResponseEntity<StandardResponse<T>>
+        +success(T data, String message) ResponseEntity<StandardResponse<T>>
+        +created(T data, String message) ResponseEntity<StandardResponse<T>>
+    }
+
+    class TrackingIdUtil {
+        <<Utility>>
+        -ThreadLocal<String> TRACKING_ID
+        +generateTrackingId() String
+        +setTrackingId(String trackingId) void
+        +getTrackingId() String
+        +clearTrackingId() void
+    }
+
+    class ReportingServiceApplication {
+        <<Bootstrap>>
+        @{EnableScheduling}
+        @{SpringBootApplication(scanBasePackages = "com.sample.system.reporting.service")}
+        +main(String[] args) void
+    }
+
+    class PagedSearchCommand {
+        <<Command>>
+        @{PositiveOrZero}
+        @{Min(1)}
+        -Integer page
+        -Integer size
+    }
+
+    class ReportDefinitionMapper {
+        <<Mapper>>
+        @{Component}
+        -long DEFAULT_MAX_EXPORT_ROWS
+        +createCommandToReportDefinition(CreateReportDefinitionCommand command) ReportDefinition
+        +updateCommandToReportDefinition(UpdateReportDefinitionCommand command, ReportDefinition existing) ReportDefinition
+        +searchCommandToCriteria(SearchReportDefinitionCommand command) ReportDefinitionSearchCriteria
+        +toCreateResponse(ReportDefinition saved) CreateReportDefinitionResponse
+        +toUpdateResponse(ReportDefinition updated) UpdateReportDefinitionResponse
+        +toFindResponse(ReportDefinition definition) FindReportDefinitionResponse
+        +toFindResponses(List<ReportDefinition> definitions) List<FindReportDefinitionResponse>
+    }
+
+    class ReportExecutionMapper {
+        <<Mapper>>
+        @{Component}
+        +toExecuteResponse(ReportDefinition definition, ReportExecution execution, ReportFormat reportFormat, String downloadUrl) ExecuteReportResponse
+        +toFailedExecuteResponse(ReportDefinition definition, ReportExecution execution) ExecuteReportResponse
+        +toFindResponse(ReportExecution execution) FindReportExecutionResponse
+    }
+
+    class ReportingProjectionMapper {
+        <<Mapper>>
+        @{Component}
+        +eventEnvelopeToPartyReport(EventEnvelope eventEnvelope) PartyReport
+        +eventEnvelopeToCardReport(EventEnvelope eventEnvelope) CardReport
+        +eventEnvelopeToLoanReport(EventEnvelope eventEnvelope) LoanReport
+        +eventEnvelopeToProductReport(EventEnvelope eventEnvelope) ProductReport
+        +eventEnvelopeToAccountReport(EventEnvelope eventEnvelope) AccountReport
+        +eventEnvelopeToInstallmentReport(EventEnvelope eventEnvelope) InstallmentReport
+        +eventEnvelopeToTransactionReport(EventEnvelope eventEnvelope) TransactionReport
+        -localDateTimeValue(Map<String, Object> payload, String key) LocalDateTime
+        -firstAvailableLocalDateTime(Map<String, Object> payload, String... keys) LocalDateTime
+        -firstAvailableInteger(Map<String, Object> payload, String... keys) Integer
+        ..truncated..
+    }
+
+    class AccountReportProjectionService {
+        <<Port>>
+    }
+
+    class CardReportProjectionService {
+        <<Port>>
+    }
+
+    class InstallmentReportProjectionService {
+        <<Port>>
+    }
+
+    class LoanReportProjectionService {
+        <<Port>>
+    }
+
+    class PartyReportProjectionService {
+        <<Port>>
+    }
+
+    class ProductReportProjectionService {
+        <<Port>>
+    }
+
+    class ReportDefinitionService {
+        <<Port>>
+        @{Valid}
+        @{Valid}
+    }
+
+    class ReportExecutionService {
+        <<Port>>
+    }
+
+    class ReportingSyncService {
+        <<Port>>
+    }
+
+    class TransactionReportProjectionService {
+        <<Port>>
+    }
+
+    class AccountReportProjectionServiceImpl {
+        <<Service>>
+        @{Service}
+        -IReportProjectionRepository reportProjectionPort
+        +sync(AccountReport accountReport) void
+    }
+
+    class CardReportProjectionServiceImpl {
+        <<Service>>
+        @{Service}
+        -IReportProjectionRepository reportProjectionPort
+        +sync(CardReport cardReport) void
+    }
+
+    class InstallmentReportProjectionServiceImpl {
+        <<Service>>
+        @{Service}
+        -IReportProjectionRepository reportProjectionPort
+        +sync(InstallmentReport installmentReport) void
+    }
+
+    class LoanReportProjectionServiceImpl {
+        <<Service>>
+        @{Service}
+        -IReportProjectionRepository reportProjectionPort
+        +sync(LoanReport loanReport) void
+    }
+
+    class PartyReportProjectionServiceImpl {
+        <<Service>>
+        @{Service}
+        -IReportProjectionRepository reportProjectionPort
+        +sync(PartyReport partyReport) void
+    }
+
+    class ProductReportProjectionServiceImpl {
+        <<Service>>
+        @{Service}
+        -IReportProjectionRepository reportProjectionPort
+        +sync(ProductReport productReport) void
+    }
+
+    class ReportDefinitionServiceImpl {
+        <<Service>>
+        @{Validated}
+        @{Service}
+        -IReportDefinitionRepository reportDefinitionRepository
+        +createReportDefinition(ReportDefinition reportDefinition) ReportDefinition
+        +updateReportDefinition(ReportDefinition reportDefinition) ReportDefinition
+        +findReportDefinitionById(Long reportDefinitionId) ReportDefinition
+        +searchReportDefinitions(ReportDefinitionSearchCriteria criteria) Page<ReportDefinition>
+        +deleteReportDefinition(Long reportDefinitionId) void
+        +updateReportDefinitionStatus(Long reportDefinitionId, Boolean active) ReportDefinition
+    }
+
+    class ReportExecutionServiceImpl {
+        <<Service>>
+        @{Service}
+        @{Value("${reporting.batch.chunk-size:1000}")}
+        @{Transactional}
+        -int DEFAULT_MAX_EXPORT_ROWS
+        -ReportDefinitionService reportDefinitionService
+        -IReportParameterRepository reportParameterRepository
+        -IReportExecutionRepository reportExecutionRepository
+        -IReportExecutionDetailRepository reportExecutionDetailRepository
+        -ReportQueryExecutorPort reportQueryExecutorPort
+        -ReportBatchLauncherPort reportBatchLauncherPort
+        -ReportParameterBindingService reportParameterBindingService
+        -ReportSqlGuard reportSqlGuard
+        -ReportBatchFormatResolver reportBatchFormatResolver
+        -ReportExecutionMapper reportExecutionMapper
+        -IReportFileRepository reportFileRepository
+        +executeReport(ExecuteReportCommand command) ExecuteReportResponse
+        +findReportExecutionById(Long reportExecutionId) ReportExecution
+        +downloadReportFile(Long reportExecutionId) ReportFileDownloadResponse
+        -applyGeneratedFileFromBatchState(ReportExecution execution, ConcurrentMap<String, Object> sharedState) void
+        -totalRecords(ReportDefinition definition, Map<String, Object> boundParameters, ConcurrentMap<String, Object> sharedState) long
+        -countTotalRecords(ReportDefinition definition, Map<String, Object> boundParameters) long
+        -rowLimit(ReportDefinition definition) int
+        -ensureActive(ReportDefinition definition) void
+        -validateReportSpecificRules(ReportDefinition definition, Map<String, Object> boundParameters) void
+        -isEmpty(Object value) boolean
+        ..truncated..
+    }
+
+    class ReportingSyncServiceImpl {
+        <<Service>>
+        @{Service}
+        -ProjectionEventDispatcher projectionEventDispatcher
+        -IReportEventRepository reportEventPort
+        +sync(EventEnvelope eventEnvelope) void
+    }
+
+    class TransactionReportProjectionServiceImpl {
+        <<Service>>
+        @{Service}
+        -IReportProjectionRepository reportProjectionPort
+        +sync(TransactionReport transactionReport) void
+    }
+
+    class IReportDefinitionRepository {
+        <<Port>>
+    }
+
+    class IReportEventRepository {
+        <<Port>>
+    }
+
+    class IReportExecutionDetailRepository {
+        <<Port>>
+    }
+
+    class IReportExecutionRepository {
+        <<Port>>
+    }
+
+    class IReportFileRepository {
+        <<Port>>
+    }
+
+    class IReportParameterRepository {
+        <<Port>>
+    }
+
+    class IReportProjectionRepository {
+        <<Port>>
+    }
+
+    class IReportTemplateRepository {
+        <<Port>>
+    }
+
+    class ReportBatchLauncherPort {
+        <<Port>>
+    }
+
+    class ReportFileStoragePort {
+        <<Port>>
+    }
+
+    class ReportQueryExecutorPort {
+        <<Port>>
+    }
+
+    class EventPayloadReader {
+        <<Utility>>
+        +stringValue(Map<String, Object> payload, String key) String
+        +stringValue(Map<String, Object> payload, String key, String alternateKey) String
+        +stringValue(Map<String, Object> payload, String key, String alternateKey, String thirdKey) String
+        +stringValue(Map<String, Object> payload, String key, String alternateKey, String thirdKey, String fourthKey) String
+        +longValue(Map<String, Object> payload, String key) Long
+        +longValue(Map<String, Object> payload, String key, String alternateKey) Long
+        +booleanValue(Map<String, Object> payload, String key) Boolean
+        +localDateValue(Map<String, Object> payload, String key) java.time.LocalDate
+        +bigDecimalValue(Map<String, Object> payload, String key) BigDecimal
+        +integerValue(Map<String, Object> payload, String key) Integer
+        ..truncated..
+    }
+
+    class ProjectionPayloadSerializer {
+        <<Utility>>
+        -ObjectMapper OBJECT_MAPPER
+        +toJson(Map<String, Object> payload) String
+    }
+
+    class ErrorCode {
+        <<enumeration>>
+        -String code
+    }
+
+    class ReportingDomainException {
+        <<class>>
+    }
+
+    class ReportDefinitionSearchCriteria {
+        <<class>>
+        -String reportCode
+        -String reportName
+        -Long categoryId
+        -String categoryName
+        -String reportType
+        -Boolean active
+        -Integer page
+        -Integer size
+    }
+
+    class AccountReport {
+        <<Aggregate>>
+        -String aggregateId
+        -Long aggregateVersion
+        -String lastEventId
+        -String sourceService
+        -String payload
+        -String nationalCode
+        -String accountNumber
+        -String accountType
+        -BigDecimal balance
+        -String status
+        -Timestamp reportDate
+    }
+
+    class AggregateRoot {
+        <<Aggregate>>
+    }
+
+    class BaseEntity {
+        <<Entity>>
+        -ID id
+        +equals(Object o) boolean
+        +hashCode() int
+    }
+
+    class CardReport {
+        <<Aggregate>>
+        -String aggregateId
+        -Long aggregateVersion
+        -String lastEventId
+        -String sourceService
+        -String payload
+        -String nationalCode
+        -String cardNumber
+        -String accountNumber
+        -String cardStatus
+        -String status
+        -Timestamp reportDate
+    }
+
+    class InstallmentReport {
+        <<Aggregate>>
+        -String aggregateId
+        -Long aggregateVersion
+        -String lastEventId
+        -String sourceService
+        -String payload
+        -Long sourceInstallmentId
+        -String loanAggregateId
+        -String loanFileNo
+        -Integer installmentNo
+        -LocalDateTime dueDate
+        -BigDecimal installmentAmount
+        -BigDecimal totalPaid
+        ..truncated..
+    }
+
+    class LoanReport {
+        <<Aggregate>>
+        -String aggregateId
+        -Long aggregateVersion
+        -String lastEventId
+        -String sourceService
+        -String payload
+        -Long sourceLoanId
+        -Long partyId
+        -String nationalCode
+        -String nationalName
+        -String fileNo
+        -String loanFileNo
+        -String loanProfileName
+        ..truncated..
+    }
+
+    class PartyReport {
+        <<Aggregate>>
+        -String aggregateId
+        -Long aggregateVersion
+        -String lastEventId
+        -String sourceService
+        -String payload
+        -String nationalCode
+        -String partyNo
+        -String partyName
+        -String partyFamily
+        -String mobile
+        -String email
+        -String status
+        ..truncated..
+    }
+
+    class ProductReport {
+        <<Aggregate>>
+        -String aggregateId
+        -Long aggregateVersion
+        -String lastEventId
+        -String sourceService
+        -String payload
+        -Long productCode
+        -String productName
+        -String nationalId
+        -String status
+        -Timestamp reportDate
+    }
+
+    class ProjectionReport {
+        <<interface>>
+    }
+
+    class ReportCategory {
+        <<Entity>>
+        -String categoryName
+        -String description
+        -Boolean active
+    }
+
+    class ReportDefinition {
+        <<Entity>>
+        -String reportCode
+        -String reportName
+        -String reportDescription
+        -Long categoryId
+        -String categoryName
+        -String sqlQuery
+        -Boolean allowExcel
+        -Boolean allowPdf
+        -Boolean allowCsv
+        -Integer timeoutSeconds
+        -Boolean active
+        -Long version
+        ..truncated..
+    }
+
+    class ReportEvent {
+        <<Entity>>
+        -String eventId
+        -String eventType
+        -String aggregateType
+        -String aggregateId
+        -Long aggregateVersion
+        -String payload
+        -String sourceSystem
+        -String correlationId
+        -String status
+        -LocalDateTime eventTimestamp
+    }
+
+    class ReportExecution {
+        <<Entity>>
+        -Long reportDefinitionId
+        -String executionStatus
+        -Timestamp executionStartTime
+        -Timestamp executionEndTime
+        -Long executionDurationMs
+        -Long totalRecordCount
+        -String requestedBy
+        -String requestParameters
+        -Long generatedFileId
+        -String errorMessage
+        -String executionSource
+        -String correlationId
+    }
+
+    class ReportExecutionDetail {
+        <<Entity>>
+        -Long reportExecutionId
+        -String stepName
+        -String stepStatus
+        -Timestamp startTime
+        -Timestamp endTime
+        -Long durationMs
+        -String message
+        -String errorMessage
+        -Integer stepOrder
+    }
+
+    class ReportFile {
+        <<Entity>>
+        -String fileName
+        -String originalFileName
+        -String fileExtension
+        -Long fileSize
+        -String bucketName
+        -String objectName
+        -String contentType
+        -String checksum
+        -String storageProvider
+    }
+
+    class ReportParameter {
+        <<Entity>>
+        -Long reportDefinitionId
+        -String parameterName
+        -String parameterLabel
+        -String parameterType
+        -Boolean required
+        -String defaultValue
+        -String validationRegex
+        -Integer displayOrder
+        -String placeholder
+        -String helpText
+        -Integer maxLength
+        -Integer minLength
+    }
+
+    class ReportSchedule {
+        <<Entity>>
+        -Long reportDefinitionId
+        -String scheduleName
+        -String cronExpression
+        -Boolean active
+        -String outputType
+        -Timestamp lastExecutionTime
+        -Timestamp nextExecutionTime
+        -String notifyEmail
+        -String scheduleParameters
+        -String lastStatus
+    }
+
+    class ReportTemplate {
+        <<Entity>>
+        -Long reportDefinitionId
+        -String templateName
+        -String sheetName
+        -String columnsJson
+    }
+
+    class TransactionReport {
+        <<Aggregate>>
+        -String aggregateId
+        -Long aggregateVersion
+        -String lastEventId
+        -String sourceService
+        -String payload
+        -String accountNumber
+        -String transactionRef
+        -String transactionType
+        -BigDecimal amount
+        -Timestamp transactionDate
+        -String status
+        -Timestamp reportDate
+    }
+
+    class EventStatus {
+        <<enumeration>>
+    }
+
+    class ReportExecutionStatus {
+        <<enumeration>>
+    }
+
+    class ReportFormat {
+        <<enumeration>>
+        -String extension
+        -String contentType
+        +extension() String
+        +contentType() String
+        +from(String value) ReportFormat
+    }
+
+    class ReportType {
+        <<enumeration>>
+    }
+
+    class AccountReportId {
+        <<ValueObject>>
+    }
+
+    class BaseId {
+        <<ValueObject>>
+        -T value
+        +getValue() T
+        +equals(Object o) boolean
+        +hashCode() int
+    }
+
+    class CardReportId {
+        <<ValueObject>>
+    }
+
+    class InstallmentReportId {
+        <<ValueObject>>
+    }
+
+    class LoanReportId {
+        <<ValueObject>>
+    }
+
+    class PartyReportId {
+        <<ValueObject>>
+    }
+
+    class ProductReportId {
+        <<ValueObject>>
+    }
+
+    class ReportCategoryId {
+        <<ValueObject>>
+    }
+
+    class ReportDefinitionId {
+        <<ValueObject>>
+    }
+
+    class ReportEventId {
+        <<ValueObject>>
+    }
+
+    class ReportExecutionDetailId {
+        <<ValueObject>>
+    }
+
+    class ReportExecutionId {
+        <<ValueObject>>
+    }
+
+    class ReportFileId {
+        <<ValueObject>>
+    }
+
+    class ReportParameterId {
+        <<ValueObject>>
+    }
+
+    class ReportScheduleId {
+        <<ValueObject>>
+    }
+
+    class ReportTemplateId {
+        <<ValueObject>>
+    }
+
+    class TransactionReportId {
+        <<ValueObject>>
+    }
+
+    AccountReportProjectionService <|.. AccountReportProjectionServiceImpl
+    CardReportProjectionService <|.. CardReportProjectionServiceImpl
+    InstallmentReportProjectionService <|.. InstallmentReportProjectionServiceImpl
+    LoanReportProjectionService <|.. LoanReportProjectionServiceImpl
+    PartyReportProjectionService <|.. PartyReportProjectionServiceImpl
+    ProductReportProjectionService <|.. ProductReportProjectionServiceImpl
+    ReportDefinitionService <|.. ReportDefinitionServiceImpl
+    ReportExecutionService <|.. ReportExecutionServiceImpl
+    ReportingSyncService <|.. ReportingSyncServiceImpl
+    TransactionReportProjectionService <|.. TransactionReportProjectionServiceImpl
+    AggregateRoot <|-- AccountReport
+    ProjectionReport <|.. AccountReport
+    BaseEntity <|-- AggregateRoot
+    AggregateRoot <|-- CardReport
+    ProjectionReport <|.. CardReport
+    AggregateRoot <|-- InstallmentReport
+    ProjectionReport <|.. InstallmentReport
+    AggregateRoot <|-- LoanReport
+    ProjectionReport <|.. LoanReport
+    AggregateRoot <|-- PartyReport
+    ProjectionReport <|.. PartyReport
+    AggregateRoot <|-- ProductReport
+    ProjectionReport <|.. ProductReport
+    BaseEntity <|-- ReportCategory
+    AggregateRoot <|-- ReportDefinition
+    AggregateRoot <|-- ReportEvent
+    AggregateRoot <|-- ReportExecution
+    BaseEntity <|-- ReportExecutionDetail
+    BaseEntity <|-- ReportFile
+    BaseEntity <|-- ReportParameter
+    BaseEntity <|-- ReportSchedule
+    BaseEntity <|-- ReportTemplate
+    AggregateRoot <|-- TransactionReport
+    ProjectionReport <|.. TransactionReport
+    BaseId <|-- AccountReportId
+    BaseId <|-- CardReportId
+    BaseId <|-- InstallmentReportId
+    BaseId <|-- LoanReportId
+    BaseId <|-- PartyReportId
+    BaseId <|-- ProductReportId
+    BaseId <|-- ReportCategoryId
+    BaseId <|-- ReportDefinitionId
+    BaseId <|-- ReportEventId
+    BaseId <|-- ReportExecutionDetailId
+    BaseId <|-- ReportExecutionId
+    BaseId <|-- ReportFileId
+    BaseId <|-- ReportParameterId
+    BaseId <|-- ReportScheduleId
+    BaseId <|-- ReportTemplateId
+    BaseId <|-- TransactionReportId

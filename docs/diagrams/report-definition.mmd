@@ -1,0 +1,189 @@
+---
+title: ReportDefinition
+---
+classDiagram
+    direction TB
+
+    class ReportDefinitionController {
+        <<Controller>>
+        @{RestController}
+        @{Tag(name = "Report Definitions", description = "مدیریت تعریف گزارش‌ها")}
+        @{RequestMapping("/api/v1/report-definition")}
+        -ReportDefinitionCreateCommandHandler reportDefinitionCreateCommandHandler
+        -ReportDefinitionUpdateCommandHandler reportDefinitionUpdateCommandHandler
+        -ReportDefinitionFindByIdCommandHandler reportDefinitionFindByIdCommandHandler
+        -ReportDefinitionSearchCommandHandler reportDefinitionSearchCommandHandler
+        -ReportDefinitionDeleteCommandHandler reportDefinitionDeleteCommandHandler
+        -ReportDefinitionStatusUpdateCommandHandler reportDefinitionStatusUpdateCommandHandler
+        +createReportDefinition(@RequestBody @Valid CreateReportDefinitionCommand command) ResponseEntity<StandardResponse<CreateReportDefinitionResponse>>
+        +updateReportDefinition(@RequestBody @Valid UpdateReportDefinitionCommand command) ResponseEntity<StandardResponse<UpdateReportDefinitionResponse>>
+        +findReportDefinitionById(@RequestBody @Valid FindReportDefinitionByIdCommand command) ResponseEntity<StandardResponse<FindReportDefinitionResponse>>
+        +searchReportDefinitions(@RequestBody SearchReportDefinitionCommand command) ResponseEntity<StandardResponse<SearchReportDefinitionResponse<FindReportDefinitionResponse>>>
+        +deleteReportDefinition(@RequestBody @Valid DeleteReportDefinitionCommand command) ResponseEntity<StandardResponse<DeleteReportDefinitionResponse>>
+        +updateReportDefinitionStatus(@RequestBody @Valid UpdateReportDefinitionStatusCommand command) ResponseEntity<StandardResponse<UpdateReportDefinitionResponse>>
+    }
+
+    class CreateReportDefinitionCommand {
+        <<Command>>
+        @{NotBlank}
+        @{NotBlank}
+        @{Positive}
+        -String reportCode
+        -String reportName
+        -String reportDescription
+        -Long categoryId
+        -String sqlQuery
+        -Boolean allowExcel
+        -Boolean allowPdf
+        -Boolean allowCsv
+        -Integer timeoutSeconds
+        -Boolean active
+        -Long version
+        -String reportType
+        ..truncated..
+    }
+
+    class DeleteReportDefinitionCommand {
+        <<Command>>
+        @{NotNull}
+        -Long reportDefinitionCode
+    }
+
+    class FindReportDefinitionByIdCommand {
+        <<Command>>
+        @{NotNull}
+        -Long reportDefinitionCode
+    }
+
+    class SearchReportDefinitionCommand {
+        <<Command>>
+        -String reportCode
+        -String reportName
+        -Long categoryId
+        -String categoryName
+        -String reportType
+        -Boolean active
+    }
+
+    class UpdateReportDefinitionCommand {
+        <<Command>>
+        @{NotNull}
+        @{NotBlank}
+        @{NotBlank}
+        -Long reportDefinitionCode
+        -String reportCode
+        -String reportName
+        -String reportDescription
+        -Long categoryId
+        -String sqlQuery
+        -Boolean allowExcel
+        -Boolean allowPdf
+        -Boolean allowCsv
+        -Integer timeoutSeconds
+        -Boolean active
+        -Long version
+        ..truncated..
+    }
+
+    class UpdateReportDefinitionStatusCommand {
+        <<Command>>
+        @{NotNull}
+        @{NotNull}
+        -Long reportDefinitionCode
+        -Boolean active
+    }
+
+    class ReportDefinitionCreateCommandHandler {
+        <<UseCase>>
+        @{Component}
+        -ReportDefinitionService reportDefinitionService
+        -ReportDefinitionMapper reportDefinitionMapper
+        -ReportSqlGuard reportSqlGuard
+        +createReportDefinition(CreateReportDefinitionCommand command) CreateReportDefinitionResponse
+    }
+
+    class ReportDefinitionDeleteCommandHandler {
+        <<UseCase>>
+        @{Component}
+        -ReportDefinitionService reportDefinitionService
+        +deleteReportDefinition(DeleteReportDefinitionCommand command) DeleteReportDefinitionResponse
+    }
+
+    class ReportDefinitionFindByIdCommandHandler {
+        <<UseCase>>
+        @{Component}
+        -ReportDefinitionService reportDefinitionService
+        -ReportDefinitionMapper reportDefinitionMapper
+        +findReportDefinitionById(FindReportDefinitionByIdCommand command) FindReportDefinitionResponse
+    }
+
+    class ReportDefinitionSearchCommandHandler {
+        <<UseCase>>
+        @{Component}
+        -ReportDefinitionService reportDefinitionService
+        -ReportDefinitionMapper reportDefinitionMapper
+        +searchReportDefinitions(SearchReportDefinitionCommand command) SearchReportDefinitionResponse<FindReportDefinitionResponse>
+    }
+
+    class ReportDefinitionStatusUpdateCommandHandler {
+        <<UseCase>>
+        @{Component}
+        -ReportDefinitionService reportDefinitionService
+        -ReportDefinitionMapper reportDefinitionMapper
+        +updateStatus(UpdateReportDefinitionStatusCommand command) UpdateReportDefinitionResponse
+    }
+
+    class ReportDefinitionUpdateCommandHandler {
+        <<UseCase>>
+        @{Component}
+        -ReportDefinitionService reportDefinitionService
+        -ReportDefinitionMapper reportDefinitionMapper
+        -ReportSqlGuard reportSqlGuard
+        +updateReportDefinition(UpdateReportDefinitionCommand command) UpdateReportDefinitionResponse
+    }
+
+    class CreateReportDefinitionResponse {
+        <<DTO>>
+        @{JsonProperty("reportDefinitionCode")}
+        -Long reportDefinitionId
+        -String message
+    }
+
+    class DeleteReportDefinitionResponse {
+        <<DTO>>
+        -Long reportDefinitionId
+        -String message
+    }
+
+    class FindReportDefinitionResponse {
+        <<DTO>>
+        @{JsonInclude(JsonInclude.Include.NON_NULL)}
+        -Long reportDefinitionCode
+        -String reportCode
+        -String reportName
+        -String reportDescription
+        -Long categoryId
+        -String categoryName
+        -String sqlQuery
+        -Boolean allowExcel
+        -Boolean allowPdf
+        -Boolean allowCsv
+        -Integer timeoutSeconds
+        -Boolean active
+        ..truncated..
+    }
+
+    class SearchReportDefinitionResponse {
+        <<DTO>>
+        -List<T> items
+        -int page
+        -int size
+        -long totalElements
+        -int totalPages
+    }
+
+    class UpdateReportDefinitionResponse {
+        <<DTO>>
+        -Long reportDefinitionId
+        -String message
+    }

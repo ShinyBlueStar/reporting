@@ -1,0 +1,147 @@
+@startuml
+title reporting-service — ReportExecution
+skinparam classAttributeIconSize 0
+skinparam linetype ortho
+hide empty members
+
+class ReportExecutionController <<Controller>> {
+  .. annotations ..
+  RestController
+  Tag(name = "Report Execution", description = "اجرای گزارش با پارامترهای ورودی")
+  RequestMapping("/api/v1/report-execution")
+  PostMapping("/execute")
+  RequestBody
+  Valid
+  -- fields --
+  -reportExecutionExecuteCommandHandler: ReportExecutionExecuteCommandHandler
+  -reportExecutionFindByIdCommandHandler: ReportExecutionFindByIdCommandHandler
+  -reportExecutionDownloadCommandHandler: ReportExecutionDownloadCommandHandler
+  -- methods --
+  +executeReport(@RequestBody @Valid ExecuteReportCommand command): ResponseEntity<StandardResponse<ExecuteReportResponse>>
+  +downloadReportFile(@PathVariable Long reportExecutionId): ResponseEntity<byte[]>
+  +findReportExecutionById(@RequestBody @Valid FindReportExecutionByIdCommand command): ResponseEntity<StandardResponse<FindReportExecutionResponse>>
+}
+
+class ExecuteReportCommand <<Command>> {
+  .. annotations ..
+  NotNull
+  -- fields --
+  -reportDefinitionCode: Long
+  -requestedBy: String
+  -reportFormat: String
+  -parameters: Map<String, String>
+}
+
+class FindReportExecutionByIdCommand <<Command>> {
+  .. annotations ..
+  NotNull
+  -- fields --
+  -reportExecutionCode: Long
+}
+
+class ReportExecutionDownloadCommandHandler <<UseCase>> {
+  .. annotations ..
+  Component
+  -- fields --
+  -reportExecutionService: ReportExecutionService
+  -- methods --
+  +downloadReportFile(Long reportExecutionId): ReportFileDownloadResponse
+}
+
+class ReportExecutionExecuteCommandHandler <<UseCase>> {
+  .. annotations ..
+  Component
+  -- fields --
+  -reportExecutionService: ReportExecutionService
+  -- methods --
+  +executeReport(ExecuteReportCommand command): ExecuteReportResponse
+}
+
+class ReportExecutionFindByIdCommandHandler <<UseCase>> {
+  .. annotations ..
+  Component
+  -- fields --
+  -reportExecutionService: ReportExecutionService
+  -reportExecutionMapper: ReportExecutionMapper
+  -- methods --
+  +findReportExecutionById(FindReportExecutionByIdCommand command): FindReportExecutionResponse
+}
+
+class ReportExecutionUrlFactory {
+  .. annotations ..
+  Component
+  Value("${reporting.api.public-base-url:http://localhost:8022}")
+  -- fields --
+  -publicBaseUrl: String
+  -- methods --
+  +downloadUrl(Long reportExecutionId): String
+  -trimTrailingSlash(String value): String
+}
+
+class ReportParameterBindingService {
+  .. annotations ..
+  Component
+  -- fields --
+  -PREVIEW_ROW_LIMIT: int
+  -objectMapper: ObjectMapper
+  -- methods --
+  +previewRowLimit(): int
+  +resolveAndValidate(List<ReportParameter> definitions, Map<String, String> input): Map<String, Object>
+  +toJson(Map<String, ?> parameters): String
+  -validateRegex(ReportParameter definition, String value): void
+  -coerceValue(String parameterType, String value): Object
+}
+
+class ReportSqlGuard {
+  .. annotations ..
+  Component
+  -- methods --
+  +ensureSelectableQuery(String sql): void
+}
+
+class ExecuteReportResponse <<DTO>> {
+  .. annotations ..
+  JsonInclude(JsonInclude.Include.NON_NULL)
+  -- fields --
+  -reportExecutionCode: Long
+  -reportDefinitionCode: Long
+  -reportCode: String
+  -executionStatus: String
+  -totalRecordCount: Long
+  -executionDurationMs: Long
+  -generatedFileId: Long
+  -reportFormat: String
+  -downloadUrl: String
+  -errorMessage: String
+  -executionSource: String
+  -correlationId: String
+  -message: String
+}
+
+class FindReportExecutionResponse <<DTO>> {
+  .. annotations ..
+  JsonInclude(JsonInclude.Include.NON_NULL)
+  -- fields --
+  -reportExecutionCode: Long
+  -reportDefinitionCode: Long
+  -executionStatus: String
+  -executionStartTime: Timestamp
+  -executionEndTime: Timestamp
+  -executionDurationMs: Long
+  -totalRecordCount: Long
+  -requestedBy: String
+  -requestParameters: String
+  -generatedFileId: Long
+  -errorMessage: String
+  -executionSource: String
+  -correlationId: String
+}
+
+class ReportFileDownloadResponse <<DTO>> {
+  -- fields --
+  -content: byte[]
+  -fileName: String
+  -contentType: String
+}
+
+@enduml

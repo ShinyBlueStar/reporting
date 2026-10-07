@@ -1,0 +1,245 @@
+@startuml
+title reporting-service — Architecture Overview
+skinparam classAttributeIconSize 0
+skinparam linetype ortho
+hide empty members
+
+class ReportDefinitionController <<Controller>> {
+  .. annotations ..
+  RestController
+  Tag(name = "Report Definitions", description = "مدیریت تعریف گزارش‌ها")
+  RequestMapping("/api/v1/report-definition")
+  PostMapping
+  RequestBody
+  Valid
+  -- fields --
+  -reportDefinitionCreateCommandHandler: ReportDefinitionCreateCommandHandler
+  -reportDefinitionUpdateCommandHandler: ReportDefinitionUpdateCommandHandler
+  -reportDefinitionFindByIdCommandHandler: ReportDefinitionFindByIdCommandHandler
+  -reportDefinitionSearchCommandHandler: ReportDefinitionSearchCommandHandler
+  -reportDefinitionDeleteCommandHandler: ReportDefinitionDeleteCommandHandler
+  -reportDefinitionStatusUpdateCommandHandler: ReportDefinitionStatusUpdateCommandHandler
+  -- methods --
+  +createReportDefinition(@RequestBody @Valid CreateReportDefinitionCommand command): ResponseEntity<StandardResponse<CreateReportDefinitionResponse>>
+  +updateReportDefinition(@RequestBody @Valid UpdateReportDefinitionCommand command): ResponseEntity<StandardResponse<UpdateReportDefinitionResponse>>
+  +findReportDefinitionById(@RequestBody @Valid FindReportDefinitionByIdCommand command): ResponseEntity<StandardResponse<FindReportDefinitionResponse>>
+  +searchReportDefinitions(@RequestBody SearchReportDefinitionCommand command): ResponseEntity<StandardResponse<SearchReportDefinitionResponse<FindReportDefinitionResponse>>>
+  +deleteReportDefinition(@RequestBody @Valid DeleteReportDefinitionCommand command): ResponseEntity<StandardResponse<DeleteReportDefinitionResponse>>
+  +updateReportDefinitionStatus(@RequestBody @Valid UpdateReportDefinitionStatusCommand command): ResponseEntity<StandardResponse<UpdateReportDefinitionResponse>>
+}
+
+class ReportExecutionController <<Controller>> {
+  .. annotations ..
+  RestController
+  Tag(name = "Report Execution", description = "اجرای گزارش با پارامترهای ورودی")
+  RequestMapping("/api/v1/report-execution")
+  PostMapping("/execute")
+  RequestBody
+  Valid
+  -- fields --
+  -reportExecutionExecuteCommandHandler: ReportExecutionExecuteCommandHandler
+  -reportExecutionFindByIdCommandHandler: ReportExecutionFindByIdCommandHandler
+  -reportExecutionDownloadCommandHandler: ReportExecutionDownloadCommandHandler
+  -- methods --
+  +executeReport(@RequestBody @Valid ExecuteReportCommand command): ResponseEntity<StandardResponse<ExecuteReportResponse>>
+  +downloadReportFile(@PathVariable Long reportExecutionId): ResponseEntity<byte[]>
+  +findReportExecutionById(@RequestBody @Valid FindReportExecutionByIdCommand command): ResponseEntity<StandardResponse<FindReportExecutionResponse>>
+}
+
+class ReportingServiceApplication <<Bootstrap>> {
+  .. annotations ..
+  EnableScheduling
+  SpringBootApplication(scanBasePackages = "com.sample.system.reporting.service")
+  -- methods --
+  +main(String[] args): void
+}
+
+class ProjectionEventDispatcherImpl {
+  .. annotations ..
+  Service
+  -- fields --
+  -projectionEventHandlers: List<ProjectionEventHandler>
+  -- methods --
+  +dispatch(EventEnvelope eventEnvelope): void
+}
+
+class ReportDefinitionServiceImpl <<Service>> {
+  .. annotations ..
+  Validated
+  Service
+  -- fields --
+  -reportDefinitionRepository: IReportDefinitionRepository
+  -- methods --
+  +createReportDefinition(ReportDefinition reportDefinition): ReportDefinition
+  +updateReportDefinition(ReportDefinition reportDefinition): ReportDefinition
+  +findReportDefinitionById(Long reportDefinitionId): ReportDefinition
+  +searchReportDefinitions(ReportDefinitionSearchCriteria criteria): Page<ReportDefinition>
+  +deleteReportDefinition(Long reportDefinitionId): void
+  +updateReportDefinitionStatus(Long reportDefinitionId, Boolean active): ReportDefinition
+}
+
+class ReportExecutionServiceImpl <<Service>> {
+  .. annotations ..
+  Service
+  Value("${reporting.batch.chunk-size:1000}")
+  Transactional
+  -- fields --
+  -DEFAULT_MAX_EXPORT_ROWS: int
+  -reportDefinitionService: ReportDefinitionService
+  -reportParameterRepository: IReportParameterRepository
+  -reportExecutionRepository: IReportExecutionRepository
+  -reportExecutionDetailRepository: IReportExecutionDetailRepository
+  -reportQueryExecutorPort: ReportQueryExecutorPort
+  -reportBatchLauncherPort: ReportBatchLauncherPort
+  -reportParameterBindingService: ReportParameterBindingService
+  -reportSqlGuard: ReportSqlGuard
+  -reportBatchFormatResolver: ReportBatchFormatResolver
+  -reportExecutionMapper: ReportExecutionMapper
+  -reportFileRepository: IReportFileRepository
+  -reportFileStoragePort: ReportFileStoragePort
+  -reportExecutionUrlFactory: ReportExecutionUrlFactory
+  -batchChunkSize: int
+  -- methods --
+  +executeReport(ExecuteReportCommand command): ExecuteReportResponse
+  +findReportExecutionById(Long reportExecutionId): ReportExecution
+  +downloadReportFile(Long reportExecutionId): ReportFileDownloadResponse
+  -applyGeneratedFileFromBatchState(ReportExecution execution, ConcurrentMap<String, Object> sharedState): void
+  -totalRecords(ReportDefinition definition, Map<String, Object> boundParameters, ConcurrentMap<String, Object> sharedState): long
+  -countTotalRecords(ReportDefinition definition, Map<String, Object> boundParameters): long
+  -rowLimit(ReportDefinition definition): int
+  -ensureActive(ReportDefinition definition): void
+  -validateReportSpecificRules(ReportDefinition definition, Map<String, Object> boundParameters): void
+  -isEmpty(Object value): boolean
+  -startExecution(ReportDefinition definition, ExecuteReportCommand command, Map<String, Object> boundParameters): ReportExecution
+  -finalizeSuccess(ReportExecution execution, long started, long totalRecords): void
+  -finalizeFailure(ReportExecution execution, long started, String errorMessage): void
+  -recordStep(ReportExecution execution, String stepName, String stepStatus, long stepStart, String message): void
+  -truncate(String value, int max): String
+}
+
+class ReportingSyncServiceImpl <<Service>> {
+  .. annotations ..
+  Service
+  -- fields --
+  -projectionEventDispatcher: ProjectionEventDispatcher
+  -reportEventPort: IReportEventRepository
+  -- methods --
+  +sync(EventEnvelope eventEnvelope): void
+}
+
+class BatchReportLauncherAdapter <<Configuration>> {
+  .. annotations ..
+  Component
+  -- fields --
+  -jobLauncher: JobLauncher
+  -reportExecutionBatchJob: Job
+  -objectMapper: ObjectMapper
+  -sharedStateRegistry: ReportBatchSharedStateRegistry
+  -- methods --
+  +launch(ReportBatchLaunchRequest request): ConcurrentMap<String, Object>
+  -isUnsuccessful(JobExecution jobExecution): boolean
+  -failureMessage(JobExecution jobExecution): String
+}
+
+class IReportProjectionPersistenceAdapter <<Adapter>> {
+  .. annotations ..
+  Component
+  -- fields --
+  -partyReportRepository: PartyReportRepository
+  -cardReportRepository: CardReportRepository
+  -loanReportRepository: LoanReportRepository
+  -productReportRepository: ProductReportRepository
+  -accountReportRepository: AccountReportRepository
+  -transactionReportRepository: TransactionReportRepository
+  -installmentReportRepository: InstallmentReportRepository
+  -partyMapper: PartyReportDataAccessMapper
+  -cardMapper: CardReportDataAccessMapper
+  -loanMapper: LoanReportDataAccessMapper
+  -productMapper: ProductReportDataAccessMapper
+  -accountMapper: AccountReportDataAccessMapper
+  -transactionMapper: TransactionReportDataAccessMapper
+  -installmentMapper: InstallmentReportDataAccessMapper
+  -- methods --
+  +upsertParty(PartyReport partyReport): void
+  +upsertCard(CardReport cardReport): void
+  +upsertLoan(LoanReport loanReport): void
+  +upsertProduct(ProductReport productReport): void
+  +upsertAccount(AccountReport accountReport): void
+  +upsertTransaction(TransactionReport transactionReport): void
+  +upsertInstallment(InstallmentReport installmentReport): void
+  -upsert(ProjectionReport report, E entity, Optional<E> existing, java.util.function.Function<E, E> saver): void
+  -isStale(Long incomingVersion, Long currentVersion): boolean
+}
+
+class ReportDefinitionPersistenceAdapter <<Adapter>> {
+  .. annotations ..
+  Component
+  -- fields --
+  -reportDefinitionRepository: ReportDefinitionRepository
+  -reportDefinitionDataAccessMapper: ReportDefinitionDataAccessMapper
+  -- methods --
+  +create(ReportDefinition reportDefinition): ReportDefinition
+  +update(ReportDefinition reportDefinition): ReportDefinition
+  +findById(Long id): ReportDefinition
+  +findByReportCode(String reportCode): ReportDefinition
+  +search(ReportDefinitionSearchCriteria criteria): Page<ReportDefinition>
+  +deleteById(Long id): void
+  +updateActive(Long id, Boolean active): ReportDefinition
+}
+
+class ReportExecutionPersistenceAdapter <<Adapter>> {
+  .. annotations ..
+  Component
+  -- fields --
+  -reportExecutionRepository: ReportExecutionRepository
+  -reportExecutionDataAccessMapper: ReportExecutionDataAccessMapper
+  -- methods --
+  +save(ReportExecution reportExecution): ReportExecution
+  +findById(Long id): ReportExecution
+}
+
+class ReportingEventConsumer <<Consumer>> {
+  .. annotations ..
+  Component
+  RabbitListener(
+            queues = "${reporting.rabbitmq.queues.party:reporting.party.events}",
+            containerFactory = "reportingRabbitListenerContainerFactory"
+    )
+  RabbitListener(
+            queues = "${reporting.rabbitmq.queues.card:reporting.card.events}",
+            containerFactory = "reportingRabbitListenerContainerFactory"
+    )
+  RabbitListener(
+            queues = "${reporting.rabbitmq.queues.loan:reporting.loan.events}",
+            containerFactory = "reportingRabbitListenerContainerFactory"
+    )
+  RabbitListener(
+            queues = "${reporting.rabbitmq.queues.accounting:reporting.accounting.events}",
+            containerFactory = "reportingRabbitListenerContainerFactory"
+    )
+  RabbitListener(
+            queues = "${reporting.rabbitmq.queues.product:reporting.product.events}",
+            containerFactory = "reportingRabbitListenerContainerFactory"
+    )
+  -- fields --
+  -reportingEventProcessor: ReportingEventProcessor
+  -- methods --
+  +consumePartyEvent(Message message, Channel channel): void
+  +consumeCardEvent(Message message, Channel channel): void
+  +consumeLoanEvent(Message message, Channel channel): void
+  +consumeAccountingEvent(Message message, Channel channel): void
+  +consumeProductEvent(Message message, Channel channel): void
+  -consume(Message message, Channel channel): void
+}
+
+class ReportingEventProcessor <<Processor>> {
+  .. annotations ..
+  Component
+  -- fields --
+  -objectMapper: ObjectMapper
+  -reportingSyncService: ReportingSyncService
+  -- methods --
+  +process(String messageBody): void
+}
+
+@enduml

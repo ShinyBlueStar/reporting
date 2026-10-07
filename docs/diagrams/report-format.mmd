@@ -1,0 +1,85 @@
+---
+title: ReportFormat
+---
+classDiagram
+    direction TB
+
+    class CsvReportFormatHandler {
+        <<Service>>
+        @{Component}
+        -DateTimeFormatter FILE_TIMESTAMP
+        -ReportTemplateColumnResolver columnResolver
+        +supports(ReportFormat format) boolean
+        +format(ReportFormatRequest request) ReportFormatResult
+        -stringValue(Object value) String
+        -escape(String value) String
+        -fileName(ReportFormatRequest request, ReportFormat format) String
+        -sanitize(String value) String
+    }
+
+    class JsonReportFormatHandler {
+        <<Service>>
+        @{Component}
+        -DateTimeFormatter FILE_TIMESTAMP
+        -ObjectMapper objectMapper
+        +supports(ReportFormat format) boolean
+        +format(ReportFormatRequest request) ReportFormatResult
+        -fileName(ReportFormatRequest request, ReportFormat format) String
+        -sanitize(String value) String
+    }
+
+    class ReportFormatColumn {
+        <<Service>>
+        -String field
+        -String title
+        -Integer width
+        +titleOrField() String
+    }
+
+    class ReportFormatHandler {
+        <<Port>>
+    }
+
+    class ReportFormatHandlerRegistry {
+        <<Service>>
+        @{Component}
+        -List<ReportFormatHandler> handlers
+        +findHandler(ReportFormat format) ReportFormatHandler
+    }
+
+    class ReportFormatRequest {
+        <<Service>>
+        -ReportDefinition reportDefinition
+        -ReportExecution reportExecution
+        -ReportTemplate reportTemplate
+        -ReportFormat format
+        -List<Map<String, Object>> rows
+        -Map<String, Object> parameters
+    }
+
+    class ReportFormatResult {
+        <<Service>>
+        -String fileName
+        -String fileExtension
+        -String contentType
+        -byte[] content
+        +fileSize() long
+    }
+
+    class ReportFormatService {
+        <<Service>>
+        @{Service}
+        -ReportFormatHandlerRegistry handlerRegistry
+        +format(ReportFormatRequest request) ReportFormatResult
+    }
+
+    class ReportTemplateColumnResolver {
+        <<Service>>
+        @{Component}
+        -ObjectMapper objectMapper
+        +resolveColumns(ReportTemplate template, List<Map<String, Object>> rows) List<ReportFormatColumn>
+        -toColumn(String field) ReportFormatColumn
+    }
+
+    ReportFormatHandler <|.. CsvReportFormatHandler
+    ReportFormatHandler <|.. JsonReportFormatHandler

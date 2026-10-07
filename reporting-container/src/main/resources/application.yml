@@ -4,6 +4,13 @@ server:
 spring:
   application:
     name: reporting-service
+  jpa:
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+        type:
+          preferred_instant_jdbc_type: TIMESTAMP
   main:
     allow-bean-definition-overriding: true
   rabbitmq:
@@ -16,6 +23,14 @@ spring:
       simple:
         acknowledge-mode: manual
         default-requeue-rejected: false
+  # Schema scripts live in db/migration but are applied manually: Flyway stays disabled on purpose.
+  flyway:
+    enabled: false
+    baseline-on-migrate: true
+    locations: classpath:db/migration
+  batch:
+    job:
+      enabled: false
 
 eureka:
   client:
@@ -52,6 +67,14 @@ application:
   version: 1.0.0
 
 reporting:
+  security:
+    enabled: ${REPORTING_SECURITY_ENABLED:true}
+    jwk-set-uri: ${REPORTING_JWT_JWK_SET_URI:}
+    issuer-uri: ${REPORTING_JWT_ISSUER_URI:}
+    hmac-secret: ${REPORTING_JWT_HMAC_SECRET:}
+    roles-claim: ${REPORTING_JWT_ROLES_CLAIM:roles}
+  api:
+    public-base-url: ${REPORTING_PUBLIC_BASE_URL:http://localhost:8021}
   rabbitmq:
     retry:
       max-attempts: ${RABBITMQ_RETRY_MAX_ATTEMPTS:3}
@@ -76,7 +99,7 @@ reporting:
     # Removes leftover staged files; objects in S3 expire through the bucket lifecycle rule.
     retention-days: ${REPORTING_FILE_RETENTION_DAYS:2}
     cron: "0 0 0 * * *"
-    zone: ${REPORTING_CLEANUP_ZONE:UTC}
+    zone: ${REPORTING_CLEANUP_ZONE:Asia/Tehran}
   batch:
     chunk-size: 1000
   storage:

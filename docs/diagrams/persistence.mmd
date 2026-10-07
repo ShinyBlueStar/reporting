@@ -1,0 +1,679 @@
+---
+title: Persistence
+---
+classDiagram
+    direction TB
+
+    class IReportEventPersistenceAdapter {
+        <<Adapter>>
+        @{Component}
+        @{Transactional(propagation = Propagation.REQUIRES_NEW)}
+        @{Transactional(propagation = Propagation.REQUIRES_NEW)}
+        -ReportEventRepository reportEventRepository
+        -ObjectMapper objectMapper
+        +isProcessed(String eventId) boolean
+        +markReceived(EventEnvelope eventEnvelope) void
+        +markProcessed(EventEnvelope eventEnvelope) void
+        +markFailed(EventEnvelope eventEnvelope, String errorMessage) void
+        -fillFromEnvelope(ReportEventEntity entity, EventEnvelope eventEnvelope) void
+        -toJson(EventEnvelope eventEnvelope) String
+    }
+
+    class IReportProjectionPersistenceAdapter {
+        <<Adapter>>
+        @{Component}
+        -PartyReportRepository partyReportRepository
+        -CardReportRepository cardReportRepository
+        -LoanReportRepository loanReportRepository
+        -ProductReportRepository productReportRepository
+        -AccountReportRepository accountReportRepository
+        -TransactionReportRepository transactionReportRepository
+        -InstallmentReportRepository installmentReportRepository
+        -PartyReportDataAccessMapper partyMapper
+        -CardReportDataAccessMapper cardMapper
+        -LoanReportDataAccessMapper loanMapper
+        -ProductReportDataAccessMapper productMapper
+        -AccountReportDataAccessMapper accountMapper
+        +upsertParty(PartyReport partyReport) void
+        +upsertCard(CardReport cardReport) void
+        +upsertLoan(LoanReport loanReport) void
+        +upsertProduct(ProductReport productReport) void
+        +upsertAccount(AccountReport accountReport) void
+        +upsertTransaction(TransactionReport transactionReport) void
+        +upsertInstallment(InstallmentReport installmentReport) void
+        -upsert(ProjectionReport report, E entity, Optional<E> existing, java.util.function.Function<E, E> saver) void
+        -isStale(Long incomingVersion, Long currentVersion) boolean
+        ..truncated..
+    }
+
+    class LocalReportFileStorageAdapter {
+        <<Adapter>>
+        @{Component}
+        @{Value("${reporting.storage.local-path:report-output}")}
+        -Path localStoragePath
+        +readContent(ReportFile reportFile) byte[]
+    }
+
+    class ReportDefinitionPersistenceAdapter {
+        <<Adapter>>
+        @{Component}
+        -ReportDefinitionRepository reportDefinitionRepository
+        -ReportDefinitionDataAccessMapper reportDefinitionDataAccessMapper
+        +create(ReportDefinition reportDefinition) ReportDefinition
+        +update(ReportDefinition reportDefinition) ReportDefinition
+        +findById(Long id) ReportDefinition
+        +findByReportCode(String reportCode) ReportDefinition
+        +search(ReportDefinitionSearchCriteria criteria) Page<ReportDefinition>
+        +deleteById(Long id) void
+        +updateActive(Long id, Boolean active) ReportDefinition
+    }
+
+    class ReportExecutionDetailPersistenceAdapter {
+        <<Adapter>>
+        @{Component}
+        -ReportExecutionDetailRepository reportExecutionDetailRepository
+        -ReportExecutionDetailDataAccessMapper reportExecutionDetailDataAccessMapper
+        +save(ReportExecutionDetail detail) ReportExecutionDetail
+    }
+
+    class ReportExecutionPersistenceAdapter {
+        <<Adapter>>
+        @{Component}
+        -ReportExecutionRepository reportExecutionRepository
+        -ReportExecutionDataAccessMapper reportExecutionDataAccessMapper
+        +save(ReportExecution reportExecution) ReportExecution
+        +findById(Long id) ReportExecution
+    }
+
+    class ReportFilePersistenceAdapter {
+        <<Adapter>>
+        @{Component}
+        -ReportFileRepository reportFileRepository
+        -ReportFileDataAccessMapper reportFileDataAccessMapper
+        +findById(Long id) ReportFile
+    }
+
+    class ReportParameterPersistenceAdapter {
+        <<Adapter>>
+        @{Component}
+        -ReportParameterRepository reportParameterRepository
+        -ReportParameterDataAccessMapper reportParameterDataAccessMapper
+        +findByReportDefinitionId(Long reportDefinitionId) List<ReportParameter>
+    }
+
+    class ReportQueryExecutorAdapter {
+        <<Adapter>>
+        @{Component}
+        -NamedParameterJdbcTemplate namedParameterJdbcTemplate
+        +executeQuery(String sql, Map<String, Object> parameters, Integer timeoutSeconds, int maxRows) List<Map<String, Object>>
+    }
+
+    class ReportTemplatePersistenceAdapter {
+        <<Adapter>>
+        @{Component}
+        -ReportTemplateRepository reportTemplateRepository
+        -ReportTemplateDataAccessMapper reportTemplateDataAccessMapper
+        +findDefaultByReportDefinitionId(Long reportDefinitionId) ReportTemplate
+        +findByReportDefinitionIdAndTemplateName(Long reportDefinitionId, String templateName) ReportTemplate
+    }
+
+    class Audit {
+        <<JpaEntity>>
+        @{MappedSuperclass}
+        @{EntityListeners(AuditingEntityListener.class)}
+        @{CreatedDate}
+        -LocalDateTime createdDate
+        -String createdBy
+        -LocalDateTime lastModifiedDate
+        -String lastModifiedBy
+    }
+
+    class Auditable {
+        <<JpaEntity>>
+        @{MappedSuperclass}
+        @{EntityListeners(AuditingEntityListener.class)}
+        @{Audited}
+        -String createBy
+        -Timestamp createdDate
+        -String lastModifiedBy
+        -Timestamp lastModifiedDate
+    }
+
+    class ReportCategoryEntity {
+        <<JpaEntity>>
+        @{Audited}
+        @{Entity}
+        @{Table(
+        name = "report_category",
+        uniqueConstraints = @UniqueConstraint(name = "uk_report_category_name", columnNames = "category_name")}
+        -Long id
+        -String categoryName
+        -String description
+        -Boolean active
+    }
+
+    class ReportDefinitionEntity {
+        <<JpaEntity>>
+        @{Audited}
+        @{AuditOverride(forClass = Auditable.class)}
+        @{Entity}
+        -Long id
+        -String reportCode
+        -String reportName
+        -String reportDescription
+        -String category
+        -String sqlQuery
+        -String outputType
+        -Integer timeoutSeconds
+        -Boolean active
+        -Integer version
+        -Long maxExportRows
+    }
+
+    class ReportExecutionDetailEntity {
+        <<JpaEntity>>
+        @{Audited}
+        @{AuditOverride(forClass = Auditable.class)}
+        @{Entity}
+        -Long id
+        -Long reportExecutionId
+        -String stepName
+        -String stepStatus
+        -Timestamp startTime
+        -Timestamp endTime
+        -Long durationMs
+        -String message
+        -String errorMessage
+        -Integer stepOrder
+    }
+
+    class ReportExecutionEntity {
+        <<JpaEntity>>
+        @{Audited}
+        @{AuditOverride(forClass = Auditable.class)}
+        @{Entity}
+        -Long id
+        -ReportDefinitionEntity reportDefinition
+        -String executionStatus
+        -Timestamp executionStartTime
+        -Timestamp executionEndTime
+        -Long executionDurationMs
+        -Long totalRecordCount
+        -String requestedBy
+        -String requestParameters
+        -ReportFileEntity generatedFile
+        -String errorMessage
+        -String executionSource
+        ..truncated..
+    }
+
+    class ReportFileEntity {
+        <<JpaEntity>>
+        @{Audited}
+        @{AuditOverride(forClass = Auditable.class)}
+        @{Entity}
+        -Long id
+        -String fileName
+        -String originalFileName
+        -String fileExtension
+        -Long fileSize
+        -String bucketName
+        -String objectName
+        -String contentType
+        -String checksum
+        -String storageProvider
+    }
+
+    class ReportParameterEntity {
+        <<JpaEntity>>
+        @{Audited}
+        @{AuditOverride(forClass = Auditable.class)}
+        @{Entity}
+        -Long id
+        -ReportDefinitionEntity reportDefinition
+        -String parameterName
+        -String parameterLabel
+        -String parameterType
+        -Boolean required
+        -String defaultValue
+        -String validationRegex
+        -Integer displayOrder
+        -String placeholder
+        -String helpText
+        -Integer maxLength
+        ..truncated..
+    }
+
+    class ReportScheduleEntity {
+        <<JpaEntity>>
+        @{Audited}
+        @{AuditOverride(forClass = Auditable.class)}
+        @{Entity}
+        -Long id
+        -ReportDefinitionEntity reportDefinition
+        -String scheduleName
+        -String cronExpression
+        -Boolean active
+        -String outputType
+        -Timestamp lastExecutionTime
+        -Timestamp nextExecutionTime
+        -String notifyEmail
+        -String scheduleParameters
+        -String lastStatus
+    }
+
+    class ReportTemplateEntity {
+        <<JpaEntity>>
+        @{Audited}
+        @{Entity}
+        @{Table(
+        name = "report_template",
+        uniqueConstraints = @UniqueConstraint(name = "uk_report_template_name", columnNames = {"report_definition_id", "template_name"})}
+        -Long id
+        -ReportDefinitionEntity reportDefinition
+        -String templateName
+        -String sheetName
+        -String columnsJson
+    }
+
+    class AccountReportEntityQuery {
+        <<JpaEntity>>
+        @{Entity}
+        @{Table(
+        name = "report_account",
+        indexes = @Index(
+                name = "idx_report_account_number",
+                columnList = "account_number"
+        )}
+        @{Column(name = "party_id")}
+        -Long partyId
+        -String nationalCode
+        -String partyName
+        -String accountNumber
+        -String accountType
+        -BigDecimal balance
+        -LocalDateTime accountCreatedAt
+        -LocalDateTime accountUpdatedAt
+        -String status
+        -String payload
+    }
+
+    class CardReportEntityQuery {
+        <<JpaEntity>>
+        @{Entity}
+        @{Table(name = "report_card")}
+        @{Column(name = "national_code", length = 20)}
+        -String nationalCode
+        -String cardNumber
+        -String accountNumber
+        -String cardStatus
+        -String status
+        -Timestamp reportDate
+        -String payload
+    }
+
+    class InstallmentReportEntityQuery {
+        <<JpaEntity>>
+        @{Entity}
+        @{Table(
+        name = "report_installment",
+        indexes = {
+                @Index(name = "idx_report_installment_loan", columnList = "loan_id")}
+        @{Index(name = "idx_report_installment_loan_file", columnList = "loan_file_no")}
+        -LoanReportEntityQuery loan
+        -Long sourceInstallmentId
+        -String loanFileNo
+        -Integer installmentNo
+        -LocalDateTime dueDate
+        -BigDecimal installmentAmount
+        -BigDecimal totalPaid
+        -String installmentStatus
+        -LocalDateTime lastPaymentDate
+        -BigDecimal remainingTotal
+        -BigDecimal remainingPrincipal
+        -BigDecimal remainingInterest
+        ..truncated..
+    }
+
+    class LoanReportEntityQuery {
+        <<JpaEntity>>
+        @{Entity}
+        @{Table(
+        name = "report_loan",
+        indexes = {
+                @Index(name = "idx_report_loan_party", columnList = "party_id")}
+        @{Index(name = "idx_report_loan_file_no", columnList = "file_no")}
+        -List<InstallmentReportEntityQuery> installments
+        -Long sourceLoanId
+        -Long partyId
+        -String nationalCode
+        -String nationalName
+        -String fileNo
+        -String loanFileNo
+        -String loanProfileName
+        -String cardPan
+        -String unitCode
+        -String unitName
+        -LocalDateTime creationDate
+        ..truncated..
+    }
+
+    class PartyReportEntityQuery {
+        <<JpaEntity>>
+        @{Entity}
+        @{Table(name = "report_party")}
+        @{Column(name = "national_code", length = 20)}
+        -String nationalCode
+        -String partyNo
+        -String partyName
+        -String partyFamily
+        -String mobile
+        -String email
+        -String status
+        -Timestamp reportDate
+        -String payload
+    }
+
+    class ProductReportEntityQuery {
+        <<JpaEntity>>
+        @{Entity}
+        @{Table(name = "report_product")}
+        @{Column(name = "product_code")}
+        -Long productCode
+        -String productName
+        -String nationalId
+        -String status
+        -Timestamp reportDate
+        -String payload
+    }
+
+    class public {
+        <<JpaEntity>>
+        @{MappedSuperclass}
+        @{Id}
+        @{GeneratedValue(
+            strategy = GenerationType.SEQUENCE,
+            generator = "report_seq"
+    )}
+        -Long id
+        -String aggregateId
+        -Long aggregateVersion
+        -String lastEventId
+        -Boolean deleted
+    }
+
+    class ReportEventEntity {
+        <<JpaEntity>>
+        @{Entity}
+        @{Table(
+        name = "report_event",
+        indexes = {
+                @Index(
+                        name = "idx_report_event_aggregate_id",
+                        columnList = "aggregate_id"
+                )}
+        @{Index(
+                        name = "idx_report_event_event_type",
+                        columnList = "event_type"
+                )}
+        -Long id
+        -String eventId
+        -String eventType
+        -String aggregateType
+        -String aggregateId
+        -Long aggregateVersion
+        -String payload
+        -String sourceSystem
+        -String correlationId
+        -EventStatus status
+        -LocalDateTime eventTimestamp
+        -LocalDateTime processedAt
+        ..truncated..
+    }
+
+    class TransactionReportEntityQuery {
+        <<JpaEntity>>
+        @{Audited}
+        @{Entity}
+        @{Table(name = "report_transaction")}
+        -String accountNumber
+        -String transactionRef
+        -String transactionType
+        -BigDecimal amount
+        -Timestamp transactionDate
+        -String status
+        -Timestamp reportDate
+        -String payload
+    }
+
+    class AccountReportDataAccessMapper {
+        <<interface>>
+        @{Mapper(componentModel = "spring", imports = AccountReportId.class)}
+        @{Mapping(target = "id",
+            expression = "java(entity.getId()}
+        @{Mapping(target = "id",
+            expression = "java(model.getId()}
+    }
+
+    class CardReportDataAccessMapper {
+        <<interface>>
+        @{Mapper(componentModel = "spring", imports = CardReportId.class)}
+        @{Mapping(target = "id",
+            expression = "java(entity.getId()}
+        @{Mapping(target = "id",
+            expression = "java(model.getId()}
+    }
+
+    class InstallmentReportDataAccessMapper {
+        <<interface>>
+        @{Mapper(componentModel = "spring", imports = InstallmentReportId.class)}
+        @{Mapping(target = "loanAggregateId", source = "loan.aggregateId")}
+        @{Mapping(target = "id",
+            expression = "java(entity.getId()}
+    }
+
+    class LoanReportDataAccessMapper {
+        <<interface>>
+        @{Mapper(componentModel = "spring", imports = LoanReportId.class)}
+        @{Mapping(target = "id",
+            expression = "java(entity.getId()}
+        @{Mapping(target = "id",
+            expression = "java(model.getId()}
+    }
+
+    class PartyReportDataAccessMapper {
+        <<interface>>
+        @{Mapper(componentModel = "spring", imports = PartyReportId.class)}
+        @{Mapping(target = "id",
+            expression = "java(entity.getId()}
+        @{Mapping(target = "id",
+            expression = "java(model.getId()}
+    }
+
+    class ProductReportDataAccessMapper {
+        <<interface>>
+        @{Mapper(componentModel = "spring", imports = ProductReportId.class)}
+        @{Mapping(target = "id",
+            expression = "java(entity.getId()}
+        @{Mapping(target = "id",
+            expression = "java(model.getId()}
+    }
+
+    class ReportCategoryDataAccessMapper {
+        <<interface>>
+        @{Mapper(componentModel = "spring", imports = ReportCategoryId.class)}
+        @{Mapping(target = "id",
+            expression = "java(entity.getId()}
+        @{Mapping(target = "id",
+            expression = "java(model.getId()}
+    }
+
+    class ReportDefinitionDataAccessMapper {
+        <<interface>>
+        @{Mapper(componentModel = "spring", imports = ReportDefinitionId.class)}
+        @{Mapping(target = "id",
+            expression = "java(entity.getId()}
+        @{Mapping(target = "categoryId", ignore = true)}
+    }
+
+    class ReportEventDataAccessMapper {
+        <<interface>>
+        @{Mapper(componentModel = "spring", imports = ReportEventId.class)}
+        @{Mapping(target = "id",
+            expression = "java(entity.getId()}
+        @{Mapping(target = "id",
+            expression = "java(model.getId()}
+    }
+
+    class ReportExecutionDataAccessMapper {
+        <<interface>>
+        @{Mapper(componentModel = "spring", imports = ReportExecutionId.class)}
+        @{Mapping(target = "id",
+            expression = "java(entity.getId()}
+        @{Mapping(target = "reportDefinitionId",
+            expression = "java(entity.getReportDefinition()}
+    }
+
+    class ReportExecutionDetailDataAccessMapper {
+        <<interface>>
+        @{Mapper(componentModel = "spring", imports = ReportExecutionDetailId.class)}
+        @{Mapping(target = "id",
+            expression = "java(entity.getId()}
+        @{Mapping(target = "id",
+            expression = "java(model.getId()}
+    }
+
+    class ReportFileDataAccessMapper {
+        <<interface>>
+        @{Mapper(componentModel = "spring", imports = ReportFileId.class)}
+        @{Mapping(target = "id",
+            expression = "java(entity.getId()}
+        @{Mapping(target = "id",
+            expression = "java(model.getId()}
+    }
+
+    class ReportParameterDataAccessMapper {
+        <<interface>>
+        @{Mapper(componentModel = "spring", imports = ReportParameterId.class)}
+        @{Mapping(target = "id",
+            expression = "java(entity.getId()}
+        @{Mapping(target = "id",
+            expression = "java(model.getId()}
+    }
+
+    class ReportScheduleDataAccessMapper {
+        <<interface>>
+        @{Mapper(componentModel = "spring", imports = ReportScheduleId.class)}
+        @{Mapping(target = "id",
+            expression = "java(entity.getId()}
+        @{Mapping(target = "id",
+            expression = "java(model.getId()}
+    }
+
+    class ReportTemplateDataAccessMapper {
+        <<interface>>
+        @{Mapper(componentModel = "spring", imports = ReportTemplateId.class)}
+        @{Mapping(target = "id",
+            expression = "java(entity.getId()}
+        @{Mapping(target = "reportDefinitionId", source = "reportDefinition.id")}
+    }
+
+    class TransactionReportDataAccessMapper {
+        <<interface>>
+        @{Mapper(componentModel = "spring", imports = TransactionReportId.class)}
+        @{Mapping(target = "id",
+            expression = "java(entity.getId()}
+        @{Mapping(target = "id",
+            expression = "java(model.getId()}
+    }
+
+    class AccountReportRepository {
+        <<Repository>>
+    }
+
+    class CardReportRepository {
+        <<Repository>>
+    }
+
+    class InstallmentReportRepository {
+        <<Repository>>
+    }
+
+    class LoanReportRepository {
+        <<Repository>>
+    }
+
+    class PartyReportRepository {
+        <<Repository>>
+    }
+
+    class ProductReportRepository {
+        <<Repository>>
+    }
+
+    class ReportDefinitionRepository {
+        <<Repository>>
+    }
+
+    class ReportEventRepository {
+        <<Repository>>
+    }
+
+    class ReportExecutionDetailRepository {
+        <<Repository>>
+    }
+
+    class ReportExecutionRepository {
+        <<Repository>>
+    }
+
+    class ReportFileRepository {
+        <<Repository>>
+    }
+
+    class ReportParameterRepository {
+        <<Repository>>
+    }
+
+    class ReportScheduleRepository {
+        <<Repository>>
+    }
+
+    class ReportTemplateRepository {
+        <<Repository>>
+    }
+
+    class TransactionReportRepository {
+        <<Repository>>
+    }
+
+    class ReportScheduleExecutionJob {
+        <<class>>
+        @{Component}
+        @{Scheduled(fixedDelayString = "${reporting.scheduler.fixed-delay-ms:60000}")}
+        -String LOAN_PORTFOLIO_REPORT_CODE
+        -ReportScheduleRepository reportScheduleRepository
+        -ReportDefinitionRepository reportDefinitionRepository
+        -ReportExecutionService reportExecutionService
+        +executeDueSchedules() void
+        -isDue(ReportScheduleEntity schedule, LocalDateTime now) boolean
+        -executeSchedule(ReportScheduleEntity schedule, LocalDateTime now) void
+        -defaultParameters(ReportDefinitionEntity definition) Map<String, String>
+        -updateNextExecution(ReportScheduleEntity schedule, LocalDateTime from) void
+    }
+
+    class ReportDefinitionSpecification {
+        <<class>>
+        +from(ReportDefinitionSearchCriteria criteria) Specification<ReportDefinitionEntity>
+    }
+
+    Auditable <|-- ReportCategoryEntity
+    Auditable <|-- ReportDefinitionEntity
+    Auditable <|-- ReportExecutionDetailEntity
+    Auditable <|-- ReportExecutionEntity
+    Auditable <|-- ReportFileEntity
+    Auditable <|-- ReportParameterEntity
+    Auditable <|-- ReportScheduleEntity
+    Auditable <|-- ReportTemplateEntity
+    Audit <|-- public
+    Audit <|-- ReportEventEntity

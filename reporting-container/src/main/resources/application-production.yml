@@ -1,0 +1,6 @@
+server:
+  port: 8027
+
+reporting:
+  api:
+    public-base-url: http://localhost:8027

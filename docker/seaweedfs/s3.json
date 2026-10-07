@@ -1,0 +1,11 @@
+{
+  "identities": [
+    {
+      "name": "reporting",
+      "credentials": [
+        { "accessKey": "reporting-access-key", "secretKey": "reporting-secret-key-change-me" }
+      ],
+      "actions": ["Admin", "Read", "Write", "List", "Tagging"]
+    }
+  ]
+}

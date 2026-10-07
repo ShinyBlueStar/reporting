@@ -1,0 +1,31 @@
+spring:
+  main:
+    allow-bean-definition-overriding: true
+  flyway:
+    enabled: false
+  sql:
+    init:
+      mode: always
+  jpa:
+    hibernate:
+      ddl-auto: create
+  rabbitmq:
+    host: localhost
+    port: 5672
+    listener:
+      simple:
+        auto-startup: false
+
+reporting:
+  storage:
+    type: local
+  security:
+    enabled: false
+  rabbitmq:
+    exchange: banking.integration.events
+    queues:
+      party: reporting.party.events
+      product: reporting.product.events
+    routing-keys:
+      party: party.events
+      product: product.events

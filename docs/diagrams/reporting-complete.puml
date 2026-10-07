@@ -1,0 +1,2417 @@
+@startuml
+title reporting-service — Complete (224 types)
+skinparam classAttributeIconSize 0
+skinparam linetype ortho
+hide empty members
+
+class ReportingGlobalExceptionHandler <<ExceptionHandler>> {
+  .. annotations ..
+  RestControllerAdvice
+  ExceptionHandler(ReportingDomainException.class)
+  ExceptionHandler(ConstraintViolationException.class)
+  -- methods --
+  +handleReportingDomainException(ReportingDomainException exception, WebRequest request): ResponseEntity<BaseResponse<ObjectUtils.Null>>
+  +handleConstraintViolation(ConstraintViolationException exception, WebRequest request): ResponseEntity<BaseResponse<ObjectUtils.Null>>
+  #handleMethodArgumentNotValid(MethodArgumentNotValidException ex, org.springframework.http.HttpHeaders headers, org.springframework.http.HttpStatusCode status, WebRequest request): ResponseEntity<Object>
+}
+
+class BaseResponse {
+  -- fields --
+  -success: Boolean
+  -data: T
+  -trackingId: String
+  -doTimeStamp: Long
+  -errorDetail: ErrorDetail
+}
+
+class ErrorDetail {
+  -- fields --
+  -message: String
+  -code: String
+}
+
+class ReportDefinitionController <<Controller>> {
+  .. annotations ..
+  RestController
+  Tag(name = "Report Definitions", description = "مدیریت تعریف گزارش‌ها")
+  RequestMapping("/api/v1/report-definition")
+  PostMapping
+  RequestBody
+  Valid
+  -- fields --
+  -reportDefinitionCreateCommandHandler: ReportDefinitionCreateCommandHandler
+  -reportDefinitionUpdateCommandHandler: ReportDefinitionUpdateCommandHandler
+  -reportDefinitionFindByIdCommandHandler: ReportDefinitionFindByIdCommandHandler
+  -reportDefinitionSearchCommandHandler: ReportDefinitionSearchCommandHandler
+  -reportDefinitionDeleteCommandHandler: ReportDefinitionDeleteCommandHandler
+  -reportDefinitionStatusUpdateCommandHandler: ReportDefinitionStatusUpdateCommandHandler
+  -- methods --
+  +createReportDefinition(@RequestBody @Valid CreateReportDefinitionCommand command): ResponseEntity<StandardResponse<CreateReportDefinitionResponse>>
+  +updateReportDefinition(@RequestBody @Valid UpdateReportDefinitionCommand command): ResponseEntity<StandardResponse<UpdateReportDefinitionResponse>>
+  +findReportDefinitionById(@RequestBody @Valid FindReportDefinitionByIdCommand command): ResponseEntity<StandardResponse<FindReportDefinitionResponse>>
+  +searchReportDefinitions(@RequestBody SearchReportDefinitionCommand command): ResponseEntity<StandardResponse<SearchReportDefinitionResponse<FindReportDefinitionResponse>>>
+  +deleteReportDefinition(@RequestBody @Valid DeleteReportDefinitionCommand command): ResponseEntity<StandardResponse<DeleteReportDefinitionResponse>>
+  +updateReportDefinitionStatus(@RequestBody @Valid UpdateReportDefinitionStatusCommand command): ResponseEntity<StandardResponse<UpdateReportDefinitionResponse>>
+}
+
+class ReportExecutionController <<Controller>> {
+  .. annotations ..
+  RestController
+  Tag(name = "Report Execution", description = "اجرای گزارش با پارامترهای ورودی")
+  RequestMapping("/api/v1/report-execution")
+  PostMapping("/execute")
+  RequestBody
+  Valid
+  -- fields --
+  -reportExecutionExecuteCommandHandler: ReportExecutionExecuteCommandHandler
+  -reportExecutionFindByIdCommandHandler: ReportExecutionFindByIdCommandHandler
+  -reportExecutionDownloadCommandHandler: ReportExecutionDownloadCommandHandler
+  -- methods --
+  +executeReport(@RequestBody @Valid ExecuteReportCommand command): ResponseEntity<StandardResponse<ExecuteReportResponse>>
+  +downloadReportFile(@PathVariable Long reportExecutionId): ResponseEntity<byte[]>
+  +findReportExecutionById(@RequestBody @Valid FindReportExecutionByIdCommand command): ResponseEntity<StandardResponse<FindReportExecutionResponse>>
+}
+
+class ResponseBuilder <<Utility>> {
+  -- methods --
+  +success(T data): ResponseEntity<StandardResponse<T>>
+  +success(T data, String message): ResponseEntity<StandardResponse<T>>
+  +created(T data, String message): ResponseEntity<StandardResponse<T>>
+}
+
+class TrackingIdUtil <<Utility>> {
+  -- fields --
+  -TRACKING_ID: ThreadLocal<String>
+  -- methods --
+  +generateTrackingId(): String
+  +setTrackingId(String trackingId): void
+  +getTrackingId(): String
+  +clearTrackingId(): void
+}
+
+class ReportingServiceApplication <<Bootstrap>> {
+  .. annotations ..
+  EnableScheduling
+  SpringBootApplication(scanBasePackages = "com.sample.system.reporting.service")
+  -- methods --
+  +main(String[] args): void
+}
+
+class ReportBatchJobConfiguration <<Configuration>> {
+  .. annotations ..
+  Configuration
+  EnableBatchProcessing
+  Bean
+  Bean
+  Bean
+  StepScope
+  -- fields --
+  +REPORT_EXECUTION_BATCH_JOB: String
+  +REPORT_EXECUTION_BATCH_STEP: String
+  -- methods --
+  +reportExecutionBatchJob(JobRepository jobRepository, Step reportExecutionBatchStep): Job
+  +reportExecutionBatchStep(JobRepository jobRepository, PlatformTransactionManager transactionManager, ReportBatchProperties properties, ReportBatchStepCompletionListener stepCompletionListener, ItemStreamReader<Object> reportBatchItemReader, ItemProcessor<Object, Object> reportBatchItemProcessor, ItemWriter<Object> reportBatchItemWriter): Step
+  +reportBatchContext(ReportBatchContextFactory contextFactory, ReportBatchSharedStateRegistry sharedStateRegistry, @Value("#{jobParameters}"): ReportBatchContext
+  +reportBatchItemReader(ReportBatchComponentRegistry registry, ReportBatchContext reportBatchContext): ItemStreamReader<Object>
+  +reportBatchItemProcessor(ReportBatchComponentRegistry registry, ReportBatchContext reportBatchContext): ItemProcessor<Object, Object>
+  +reportBatchItemWriter(ReportBatchComponentRegistry registry, ReportBatchContext reportBatchContext): ItemWriter<Object>
+}
+
+class ReportBatchProperties <<Configuration>> {
+  .. annotations ..
+  Component
+  ConfigurationProperties(prefix = "reporting.batch")
+  -- fields --
+  -chunkSize: int
+}
+
+class PagedSearchCommand <<Command>> {
+  .. annotations ..
+  PositiveOrZero
+  Min(1)
+  -- fields --
+  -page: Integer
+  -size: Integer
+}
+
+class CreateReportDefinitionCommand <<Command>> {
+  .. annotations ..
+  NotBlank
+  NotBlank
+  Positive
+  -- fields --
+  -reportCode: String
+  -reportName: String
+  -reportDescription: String
+  -categoryId: Long
+  -sqlQuery: String
+  -allowExcel: Boolean
+  -allowPdf: Boolean
+  -allowCsv: Boolean
+  -timeoutSeconds: Integer
+  -active: Boolean
+  -version: Long
+  -reportType: String
+  -maxExportRows: Long
+}
+
+class DeleteReportDefinitionCommand <<Command>> {
+  .. annotations ..
+  NotNull
+  -- fields --
+  -reportDefinitionCode: Long
+}
+
+class FindReportDefinitionByIdCommand <<Command>> {
+  .. annotations ..
+  NotNull
+  -- fields --
+  -reportDefinitionCode: Long
+}
+
+class SearchReportDefinitionCommand <<Command>> {
+  -- fields --
+  -reportCode: String
+  -reportName: String
+  -categoryId: Long
+  -categoryName: String
+  -reportType: String
+  -active: Boolean
+}
+
+class UpdateReportDefinitionCommand <<Command>> {
+  .. annotations ..
+  NotNull
+  NotBlank
+  NotBlank
+  Positive
+  -- fields --
+  -reportDefinitionCode: Long
+  -reportCode: String
+  -reportName: String
+  -reportDescription: String
+  -categoryId: Long
+  -sqlQuery: String
+  -allowExcel: Boolean
+  -allowPdf: Boolean
+  -allowCsv: Boolean
+  -timeoutSeconds: Integer
+  -active: Boolean
+  -version: Long
+  -reportType: String
+  -maxExportRows: Long
+}
+
+class UpdateReportDefinitionStatusCommand <<Command>> {
+  .. annotations ..
+  NotNull
+  NotNull
+  -- fields --
+  -reportDefinitionCode: Long
+  -active: Boolean
+}
+
+class ExecuteReportCommand <<Command>> {
+  .. annotations ..
+  NotNull
+  -- fields --
+  -reportDefinitionCode: Long
+  -requestedBy: String
+  -reportFormat: String
+  -parameters: Map<String, String>
+}
+
+class FindReportExecutionByIdCommand <<Command>> {
+  .. annotations ..
+  NotNull
+  -- fields --
+  -reportExecutionCode: Long
+}
+
+interface ProjectionEventDispatcher <<Port>> {
+}
+
+class ProjectionEventDispatcherImpl {
+  .. annotations ..
+  Service
+  -- fields --
+  -projectionEventHandlers: List<ProjectionEventHandler>
+  -- methods --
+  +dispatch(EventEnvelope eventEnvelope): void
+}
+
+abstract class AbstractProjectionEventHandler {
+  -- fields --
+  -aggregateTypes: String[]
+  -- methods --
+  +supports(EventEnvelope eventEnvelope): boolean
+}
+
+class AccountProjectionEventHandler <<Handler>> {
+  .. annotations ..
+  Component
+  -- fields --
+  -accountReportProjectionService: AccountReportProjectionService
+  -reportingProjectionMapper: ReportingProjectionMapper
+  -- methods --
+  +handle(EventEnvelope eventEnvelope): void
+}
+
+class CardProjectionEventHandler <<Handler>> {
+  .. annotations ..
+  Component
+  -- fields --
+  -cardReportProjectionService: CardReportProjectionService
+  -reportingProjectionMapper: ReportingProjectionMapper
+  -- methods --
+  +handle(EventEnvelope eventEnvelope): void
+}
+
+class InstallmentProjectionEventHandler <<Handler>> {
+  .. annotations ..
+  Component
+  -- fields --
+  -installmentReportProjectionService: InstallmentReportProjectionService
+  -reportingProjectionMapper: ReportingProjectionMapper
+  -- methods --
+  +handle(EventEnvelope eventEnvelope): void
+}
+
+class LoanProjectionEventHandler <<Handler>> {
+  .. annotations ..
+  Component
+  -- fields --
+  -loanReportProjectionService: LoanReportProjectionService
+  -reportingProjectionMapper: ReportingProjectionMapper
+  -- methods --
+  +handle(EventEnvelope eventEnvelope): void
+}
+
+class PartyProjectionEventHandler <<Handler>> {
+  .. annotations ..
+  Component
+  -- fields --
+  -partyReportProjectionService: PartyReportProjectionService
+  -reportingProjectionMapper: ReportingProjectionMapper
+  -- methods --
+  +handle(EventEnvelope eventEnvelope): void
+}
+
+class ProductProjectionEventHandler <<Handler>> {
+  .. annotations ..
+  Component
+  -- fields --
+  -productReportProjectionService: ProductReportProjectionService
+  -reportingProjectionMapper: ReportingProjectionMapper
+  -- methods --
+  +handle(EventEnvelope eventEnvelope): void
+}
+
+interface ProjectionEventHandler <<Handler>> {
+}
+
+class TransactionProjectionEventHandler <<Handler>> {
+  .. annotations ..
+  Component
+  -- fields --
+  -transactionReportProjectionService: TransactionReportProjectionService
+  -reportingProjectionMapper: ReportingProjectionMapper
+  -- methods --
+  +handle(EventEnvelope eventEnvelope): void
+}
+
+class EventEnvelope <<record>> {
+}
+
+class ReportDefinitionCreateCommandHandler <<UseCase>> {
+  .. annotations ..
+  Component
+  -- fields --
+  -reportDefinitionService: ReportDefinitionService
+  -reportDefinitionMapper: ReportDefinitionMapper
+  -reportSqlGuard: ReportSqlGuard
+  -- methods --
+  +createReportDefinition(CreateReportDefinitionCommand command): CreateReportDefinitionResponse
+}
+
+class ReportDefinitionDeleteCommandHandler <<UseCase>> {
+  .. annotations ..
+  Component
+  -- fields --
+  -reportDefinitionService: ReportDefinitionService
+  -- methods --
+  +deleteReportDefinition(DeleteReportDefinitionCommand command): DeleteReportDefinitionResponse
+}
+
+class ReportDefinitionFindByIdCommandHandler <<UseCase>> {
+  .. annotations ..
+  Component
+  -- fields --
+  -reportDefinitionService: ReportDefinitionService
+  -reportDefinitionMapper: ReportDefinitionMapper
+  -- methods --
+  +findReportDefinitionById(FindReportDefinitionByIdCommand command): FindReportDefinitionResponse
+}
+
+class ReportDefinitionSearchCommandHandler <<UseCase>> {
+  .. annotations ..
+  Component
+  -- fields --
+  -reportDefinitionService: ReportDefinitionService
+  -reportDefinitionMapper: ReportDefinitionMapper
+  -- methods --
+  +searchReportDefinitions(SearchReportDefinitionCommand command): SearchReportDefinitionResponse<FindReportDefinitionResponse>
+}
+
+class ReportDefinitionStatusUpdateCommandHandler <<UseCase>> {
+  .. annotations ..
+  Component
+  -- fields --
+  -reportDefinitionService: ReportDefinitionService
+  -reportDefinitionMapper: ReportDefinitionMapper
+  -- methods --
+  +updateStatus(UpdateReportDefinitionStatusCommand command): UpdateReportDefinitionResponse
+}
+
+class ReportDefinitionUpdateCommandHandler <<UseCase>> {
+  .. annotations ..
+  Component
+  -- fields --
+  -reportDefinitionService: ReportDefinitionService
+  -reportDefinitionMapper: ReportDefinitionMapper
+  -reportSqlGuard: ReportSqlGuard
+  -- methods --
+  +updateReportDefinition(UpdateReportDefinitionCommand command): UpdateReportDefinitionResponse
+}
+
+class ReportExecutionDownloadCommandHandler <<UseCase>> {
+  .. annotations ..
+  Component
+  -- fields --
+  -reportExecutionService: ReportExecutionService
+  -- methods --
+  +downloadReportFile(Long reportExecutionId): ReportFileDownloadResponse
+}
+
+class ReportExecutionExecuteCommandHandler <<UseCase>> {
+  .. annotations ..
+  Component
+  -- fields --
+  -reportExecutionService: ReportExecutionService
+  -- methods --
+  +executeReport(ExecuteReportCommand command): ExecuteReportResponse
+}
+
+class ReportExecutionFindByIdCommandHandler <<UseCase>> {
+  .. annotations ..
+  Component
+  -- fields --
+  -reportExecutionService: ReportExecutionService
+  -reportExecutionMapper: ReportExecutionMapper
+  -- methods --
+  +findReportExecutionById(FindReportExecutionByIdCommand command): FindReportExecutionResponse
+}
+
+class ReportDefinitionMapper <<Mapper>> {
+  .. annotations ..
+  Component
+  -- fields --
+  -DEFAULT_MAX_EXPORT_ROWS: long
+  -- methods --
+  +createCommandToReportDefinition(CreateReportDefinitionCommand command): ReportDefinition
+  +updateCommandToReportDefinition(UpdateReportDefinitionCommand command, ReportDefinition existing): ReportDefinition
+  +searchCommandToCriteria(SearchReportDefinitionCommand command): ReportDefinitionSearchCriteria
+  +toCreateResponse(ReportDefinition saved): CreateReportDefinitionResponse
+  +toUpdateResponse(ReportDefinition updated): UpdateReportDefinitionResponse
+  +toFindResponse(ReportDefinition definition): FindReportDefinitionResponse
+  +toFindResponses(List<ReportDefinition> definitions): List<FindReportDefinitionResponse>
+}
+
+class ReportExecutionMapper <<Mapper>> {
+  .. annotations ..
+  Component
+  -- methods --
+  +toExecuteResponse(ReportDefinition definition, ReportExecution execution, ReportFormat reportFormat, String downloadUrl): ExecuteReportResponse
+  +toFailedExecuteResponse(ReportDefinition definition, ReportExecution execution): ExecuteReportResponse
+  +toFindResponse(ReportExecution execution): FindReportExecutionResponse
+}
+
+class ReportingProjectionMapper <<Mapper>> {
+  .. annotations ..
+  Component
+  -- methods --
+  +eventEnvelopeToPartyReport(EventEnvelope eventEnvelope): PartyReport
+  +eventEnvelopeToCardReport(EventEnvelope eventEnvelope): CardReport
+  +eventEnvelopeToLoanReport(EventEnvelope eventEnvelope): LoanReport
+  +eventEnvelopeToProductReport(EventEnvelope eventEnvelope): ProductReport
+  +eventEnvelopeToAccountReport(EventEnvelope eventEnvelope): AccountReport
+  +eventEnvelopeToInstallmentReport(EventEnvelope eventEnvelope): InstallmentReport
+  +eventEnvelopeToTransactionReport(EventEnvelope eventEnvelope): TransactionReport
+  -localDateTimeValue(Map<String, Object> payload, String key): LocalDateTime
+  -firstAvailableLocalDateTime(Map<String, Object> payload, String... keys): LocalDateTime
+  -firstAvailableInteger(Map<String, Object> payload, String... keys): Integer
+  -firstAvailableBigDecimal(Map<String, Object> payload, String... keys): BigDecimal
+  -firstAvailableLong(Map<String, Object> payload, String... keys): Long
+  -parseLongSafely(String value): Long
+  -applyEnvelope(ProjectionReport report, EventEnvelope eventEnvelope): void
+}
+
+interface AccountReportProjectionService <<Port>> {
+}
+
+interface CardReportProjectionService <<Port>> {
+}
+
+interface InstallmentReportProjectionService <<Port>> {
+}
+
+interface LoanReportProjectionService <<Port>> {
+}
+
+interface PartyReportProjectionService <<Port>> {
+}
+
+interface ProductReportProjectionService <<Port>> {
+}
+
+interface ReportDefinitionService <<Port>> {
+  .. annotations ..
+  Valid
+  Valid
+}
+
+interface ReportExecutionService <<Port>> {
+}
+
+interface ReportingSyncService <<Port>> {
+}
+
+interface TransactionReportProjectionService <<Port>> {
+}
+
+class AccountReportProjectionServiceImpl <<Service>> {
+  .. annotations ..
+  Service
+  -- fields --
+  -reportProjectionPort: IReportProjectionRepository
+  -- methods --
+  +sync(AccountReport accountReport): void
+}
+
+class CardReportProjectionServiceImpl <<Service>> {
+  .. annotations ..
+  Service
+  -- fields --
+  -reportProjectionPort: IReportProjectionRepository
+  -- methods --
+  +sync(CardReport cardReport): void
+}
+
+class InstallmentReportProjectionServiceImpl <<Service>> {
+  .. annotations ..
+  Service
+  -- fields --
+  -reportProjectionPort: IReportProjectionRepository
+  -- methods --
+  +sync(InstallmentReport installmentReport): void
+}
+
+class LoanReportProjectionServiceImpl <<Service>> {
+  .. annotations ..
+  Service
+  -- fields --
+  -reportProjectionPort: IReportProjectionRepository
+  -- methods --
+  +sync(LoanReport loanReport): void
+}
+
+class PartyReportProjectionServiceImpl <<Service>> {
+  .. annotations ..
+  Service
+  -- fields --
+  -reportProjectionPort: IReportProjectionRepository
+  -- methods --
+  +sync(PartyReport partyReport): void
+}
+
+class ProductReportProjectionServiceImpl <<Service>> {
+  .. annotations ..
+  Service
+  -- fields --
+  -reportProjectionPort: IReportProjectionRepository
+  -- methods --
+  +sync(ProductReport productReport): void
+}
+
+class ReportDefinitionServiceImpl <<Service>> {
+  .. annotations ..
+  Validated
+  Service
+  -- fields --
+  -reportDefinitionRepository: IReportDefinitionRepository
+  -- methods --
+  +createReportDefinition(ReportDefinition reportDefinition): ReportDefinition
+  +updateReportDefinition(ReportDefinition reportDefinition): ReportDefinition
+  +findReportDefinitionById(Long reportDefinitionId): ReportDefinition
+  +searchReportDefinitions(ReportDefinitionSearchCriteria criteria): Page<ReportDefinition>
+  +deleteReportDefinition(Long reportDefinitionId): void
+  +updateReportDefinitionStatus(Long reportDefinitionId, Boolean active): ReportDefinition
+}
+
+class ReportExecutionServiceImpl <<Service>> {
+  .. annotations ..
+  Service
+  Value("${reporting.batch.chunk-size:1000}")
+  Transactional
+  -- fields --
+  -DEFAULT_MAX_EXPORT_ROWS: int
+  -reportDefinitionService: ReportDefinitionService
+  -reportParameterRepository: IReportParameterRepository
+  -reportExecutionRepository: IReportExecutionRepository
+  -reportExecutionDetailRepository: IReportExecutionDetailRepository
+  -reportQueryExecutorPort: ReportQueryExecutorPort
+  -reportBatchLauncherPort: ReportBatchLauncherPort
+  -reportParameterBindingService: ReportParameterBindingService
+  -reportSqlGuard: ReportSqlGuard
+  -reportBatchFormatResolver: ReportBatchFormatResolver
+  -reportExecutionMapper: ReportExecutionMapper
+  -reportFileRepository: IReportFileRepository
+  -reportFileStoragePort: ReportFileStoragePort
+  -reportExecutionUrlFactory: ReportExecutionUrlFactory
+  -batchChunkSize: int
+  -- methods --
+  +executeReport(ExecuteReportCommand command): ExecuteReportResponse
+  +findReportExecutionById(Long reportExecutionId): ReportExecution
+  +downloadReportFile(Long reportExecutionId): ReportFileDownloadResponse
+  -applyGeneratedFileFromBatchState(ReportExecution execution, ConcurrentMap<String, Object> sharedState): void
+  -totalRecords(ReportDefinition definition, Map<String, Object> boundParameters, ConcurrentMap<String, Object> sharedState): long
+  -countTotalRecords(ReportDefinition definition, Map<String, Object> boundParameters): long
+  -rowLimit(ReportDefinition definition): int
+  -ensureActive(ReportDefinition definition): void
+  -validateReportSpecificRules(ReportDefinition definition, Map<String, Object> boundParameters): void
+  -isEmpty(Object value): boolean
+  -startExecution(ReportDefinition definition, ExecuteReportCommand command, Map<String, Object> boundParameters): ReportExecution
+  -finalizeSuccess(ReportExecution execution, long started, long totalRecords): void
+  -finalizeFailure(ReportExecution execution, long started, String errorMessage): void
+  -recordStep(ReportExecution execution, String stepName, String stepStatus, long stepStart, String message): void
+  -truncate(String value, int max): String
+}
+
+class ReportingSyncServiceImpl <<Service>> {
+  .. annotations ..
+  Service
+  -- fields --
+  -projectionEventDispatcher: ProjectionEventDispatcher
+  -reportEventPort: IReportEventRepository
+  -- methods --
+  +sync(EventEnvelope eventEnvelope): void
+}
+
+class TransactionReportProjectionServiceImpl <<Service>> {
+  .. annotations ..
+  Service
+  -- fields --
+  -reportProjectionPort: IReportProjectionRepository
+  -- methods --
+  +sync(TransactionReport transactionReport): void
+}
+
+interface IReportDefinitionRepository <<Port>> {
+}
+
+interface IReportEventRepository <<Port>> {
+}
+
+interface IReportExecutionDetailRepository <<Port>> {
+}
+
+interface IReportExecutionRepository <<Port>> {
+}
+
+interface IReportFileRepository <<Port>> {
+}
+
+interface IReportParameterRepository <<Port>> {
+}
+
+interface IReportProjectionRepository <<Port>> {
+}
+
+interface IReportTemplateRepository <<Port>> {
+}
+
+interface ReportBatchLauncherPort <<Port>> {
+}
+
+interface ReportFileStoragePort <<Port>> {
+}
+
+interface ReportQueryExecutorPort <<Port>> {
+}
+
+interface ReportBatchProcessor <<Port>> {
+}
+
+interface ReportBatchReader <<Port>> {
+}
+
+interface ReportBatchWriter <<Port>> {
+}
+
+class ReportBatchContext <<Model>> {
+  -- fields --
+  -reportDefinition: ReportDefinition
+  -reportExecution: ReportExecution
+  -reportFormat: ReportFormat
+  -parameters: Map<String, Object>
+  -chunkSize: int
+  -exportMode: boolean
+  -sharedState: ConcurrentMap<String, Object>
+}
+
+class ReportBatchJobParameterKeys <<Model>> {
+  -- fields --
+  +REPORT_DEFINITION_ID: String
+  +REPORT_EXECUTION_ID: String
+  +REPORT_FORMAT: String
+  +PARAMETERS_JSON: String
+  +CHUNK_SIZE: String
+  +EXPORT_MODE: String
+}
+
+class ReportBatchLaunchRequest <<Model>> {
+  -- fields --
+  -reportDefinition: ReportDefinition
+  -reportExecution: ReportExecution
+  -reportFormat: ReportFormat
+  -parameters: Map<String, Object>
+  -chunkSize: int
+  -exportMode: boolean
+}
+
+class ReportBatchSharedStateKeys <<Model>> {
+  -- fields --
+  +REPORT_TEMPLATE: String
+  +COLUMN_NAMES: String
+  +PROCESSED_ROW_COUNT: String
+  +PREVIEW_ROWS: String
+  +ACCUMULATED_ROWS: String
+  +FORMAT_RESULT: String
+  +EXPORT_MODE: String
+  +REPORT_DEFINITION: String
+  +REPORT_EXECUTION: String
+  +REPORT_FORMAT: String
+  +PARAMETERS: String
+}
+
+class ReportBatchContextFactory <<Model>> {
+  .. annotations ..
+  Component
+  -- fields --
+  -reportDefinitionService: ReportDefinitionService
+  -reportExecutionRepository: IReportExecutionRepository
+  -objectMapper: ObjectMapper
+  -- methods --
+  +create(ConcurrentMap<String, Object> jobParameters): ReportBatchContext
+  -asLong(ConcurrentMap<String, Object> jobParameters, String key): Long
+  -asInt(ConcurrentMap<String, Object> jobParameters, String key): int
+  -asString(ConcurrentMap<String, Object> jobParameters, String key): String
+  -asBoolean(ConcurrentMap<String, Object> jobParameters, String key): boolean
+  -parameters(String parametersJson): Map<String, Object>
+}
+
+class ReportBatchFormatResolver <<Model>> {
+  .. annotations ..
+  Component
+  -- fields --
+  -SUPPORTED_EXPORT_FORMATS: Set<ReportFormat>
+  -- methods --
+  +resolve(ExecuteReportCommand command, ReportDefinition definition): ReportFormat
+  +isExportRequested(ExecuteReportCommand command): boolean
+  -validateAllowedFormat(ReportDefinition definition, ReportFormat format): void
+}
+
+class ReportExecutionUrlFactory {
+  .. annotations ..
+  Component
+  Value("${reporting.api.public-base-url:http://localhost:8022}")
+  -- fields --
+  -publicBaseUrl: String
+  -- methods --
+  +downloadUrl(Long reportExecutionId): String
+  -trimTrailingSlash(String value): String
+}
+
+class ReportParameterBindingService {
+  .. annotations ..
+  Component
+  -- fields --
+  -PREVIEW_ROW_LIMIT: int
+  -objectMapper: ObjectMapper
+  -- methods --
+  +previewRowLimit(): int
+  +resolveAndValidate(List<ReportParameter> definitions, Map<String, String> input): Map<String, Object>
+  +toJson(Map<String, ?> parameters): String
+  -validateRegex(ReportParameter definition, String value): void
+  -coerceValue(String parameterType, String value): Object
+}
+
+class ReportSqlGuard {
+  .. annotations ..
+  Component
+  -- methods --
+  +ensureSelectableQuery(String sql): void
+}
+
+class CreateReportDefinitionResponse <<DTO>> {
+  .. annotations ..
+  JsonProperty("reportDefinitionCode")
+  -- fields --
+  -reportDefinitionId: Long
+  -message: String
+}
+
+class DeleteReportDefinitionResponse <<DTO>> {
+  -- fields --
+  -reportDefinitionId: Long
+  -message: String
+}
+
+class FindReportDefinitionResponse <<DTO>> {
+  .. annotations ..
+  JsonInclude(JsonInclude.Include.NON_NULL)
+  -- fields --
+  -reportDefinitionCode: Long
+  -reportCode: String
+  -reportName: String
+  -reportDescription: String
+  -categoryId: Long
+  -categoryName: String
+  -sqlQuery: String
+  -allowExcel: Boolean
+  -allowPdf: Boolean
+  -allowCsv: Boolean
+  -timeoutSeconds: Integer
+  -active: Boolean
+  -version: Long
+  -reportType: String
+  -maxExportRows: Long
+}
+
+class SearchReportDefinitionResponse <<DTO>> {
+  -- fields --
+  -items: List<T>
+  -page: int
+  -size: int
+  -totalElements: long
+  -totalPages: int
+}
+
+class UpdateReportDefinitionResponse <<DTO>> {
+  -- fields --
+  -reportDefinitionId: Long
+  -message: String
+}
+
+class ExecuteReportResponse <<DTO>> {
+  .. annotations ..
+  JsonInclude(JsonInclude.Include.NON_NULL)
+  -- fields --
+  -reportExecutionCode: Long
+  -reportDefinitionCode: Long
+  -reportCode: String
+  -executionStatus: String
+  -totalRecordCount: Long
+  -executionDurationMs: Long
+  -generatedFileId: Long
+  -reportFormat: String
+  -downloadUrl: String
+  -errorMessage: String
+  -executionSource: String
+  -correlationId: String
+  -message: String
+}
+
+class FindReportExecutionResponse <<DTO>> {
+  .. annotations ..
+  JsonInclude(JsonInclude.Include.NON_NULL)
+  -- fields --
+  -reportExecutionCode: Long
+  -reportDefinitionCode: Long
+  -executionStatus: String
+  -executionStartTime: Timestamp
+  -executionEndTime: Timestamp
+  -executionDurationMs: Long
+  -totalRecordCount: Long
+  -requestedBy: String
+  -requestParameters: String
+  -generatedFileId: Long
+  -errorMessage: String
+  -executionSource: String
+  -correlationId: String
+}
+
+class ReportFileDownloadResponse <<DTO>> {
+  -- fields --
+  -content: byte[]
+  -fileName: String
+  -contentType: String
+}
+
+class EventPayloadReader <<Utility>> {
+  -- methods --
+  +stringValue(Map<String, Object> payload, String key): String
+  +stringValue(Map<String, Object> payload, String key, String alternateKey): String
+  +stringValue(Map<String, Object> payload, String key, String alternateKey, String thirdKey): String
+  +stringValue(Map<String, Object> payload, String key, String alternateKey, String thirdKey, String fourthKey): String
+  +longValue(Map<String, Object> payload, String key): Long
+  +longValue(Map<String, Object> payload, String key, String alternateKey): Long
+  +booleanValue(Map<String, Object> payload, String key): Boolean
+  +localDateValue(Map<String, Object> payload, String key): java.time.LocalDate
+  +bigDecimalValue(Map<String, Object> payload, String key): BigDecimal
+  +integerValue(Map<String, Object> payload, String key): Integer
+  +timestampValue(Map<String, Object> payload, String key): Timestamp
+}
+
+class ProjectionPayloadSerializer <<Utility>> {
+  -- fields --
+  -OBJECT_MAPPER: ObjectMapper
+  -- methods --
+  +toJson(Map<String, Object> payload): String
+}
+
+enum ErrorCode <<enumeration>> {
+  -- fields --
+  -code: String
+}
+
+class ReportingDomainException {
+}
+
+class ReportDefinitionSearchCriteria {
+  -- fields --
+  -reportCode: String
+  -reportName: String
+  -categoryId: Long
+  -categoryName: String
+  -reportType: String
+  -active: Boolean
+  -page: Integer
+  -size: Integer
+}
+
+class AccountReport <<Aggregate>> {
+  -- fields --
+  -aggregateId: String
+  -aggregateVersion: Long
+  -lastEventId: String
+  -sourceService: String
+  -payload: String
+  -nationalCode: String
+  -accountNumber: String
+  -accountType: String
+  -balance: BigDecimal
+  -status: String
+  -reportDate: Timestamp
+}
+
+abstract class AggregateRoot <<Aggregate>> {
+}
+
+abstract class BaseEntity <<Entity>> {
+  -- fields --
+  -id: ID
+  -- methods --
+  +equals(Object o): boolean
+  +hashCode(): int
+}
+
+class CardReport <<Aggregate>> {
+  -- fields --
+  -aggregateId: String
+  -aggregateVersion: Long
+  -lastEventId: String
+  -sourceService: String
+  -payload: String
+  -nationalCode: String
+  -cardNumber: String
+  -accountNumber: String
+  -cardStatus: String
+  -status: String
+  -reportDate: Timestamp
+}
+
+class InstallmentReport <<Aggregate>> {
+  -- fields --
+  -aggregateId: String
+  -aggregateVersion: Long
+  -lastEventId: String
+  -sourceService: String
+  -payload: String
+  -sourceInstallmentId: Long
+  -loanAggregateId: String
+  -loanFileNo: String
+  -installmentNo: Integer
+  -dueDate: LocalDateTime
+  -installmentAmount: BigDecimal
+  -totalPaid: BigDecimal
+  -installmentStatus: String
+  -lastPaymentDate: LocalDateTime
+  -remainingTotal: BigDecimal
+  -remainingPrincipal: BigDecimal
+  -remainingInterest: BigDecimal
+  -remainingPenalty: BigDecimal
+  -remainingPostMaturityInterest: BigDecimal
+  -reportDate: Timestamp
+}
+
+class LoanReport <<Aggregate>> {
+  -- fields --
+  -aggregateId: String
+  -aggregateVersion: Long
+  -lastEventId: String
+  -sourceService: String
+  -payload: String
+  -sourceLoanId: Long
+  -partyId: Long
+  -nationalCode: String
+  -nationalName: String
+  -fileNo: String
+  -loanFileNo: String
+  -loanProfileName: String
+  -cardPan: String
+  -unitCode: String
+  -unitName: String
+  -creationDate: LocalDateTime
+  -requestedAmount: BigDecimal
+  -totalInterest: BigDecimal
+  -installmentCount: Integer
+  -paidInstallmentCount: Integer
+  -firstInstallmentDate: LocalDateTime
+  -lastInstallmentDate: LocalDateTime
+  -loanStatus: String
+  -totalRemainingPrincipal: BigDecimal
+  -totalRemainingInterest: BigDecimal
+  .. 5 more fields ..
+}
+
+class PartyReport <<Aggregate>> {
+  -- fields --
+  -aggregateId: String
+  -aggregateVersion: Long
+  -lastEventId: String
+  -sourceService: String
+  -payload: String
+  -nationalCode: String
+  -partyNo: String
+  -partyName: String
+  -partyFamily: String
+  -mobile: String
+  -email: String
+  -status: String
+  -reportDate: Timestamp
+}
+
+class ProductReport <<Aggregate>> {
+  -- fields --
+  -aggregateId: String
+  -aggregateVersion: Long
+  -lastEventId: String
+  -sourceService: String
+  -payload: String
+  -productCode: Long
+  -productName: String
+  -nationalId: String
+  -status: String
+  -reportDate: Timestamp
+}
+
+interface ProjectionReport <<interface>> {
+}
+
+class ReportCategory <<Entity>> {
+  -- fields --
+  -categoryName: String
+  -description: String
+  -active: Boolean
+}
+
+class ReportDefinition <<Entity>> {
+  -- fields --
+  -reportCode: String
+  -reportName: String
+  -reportDescription: String
+  -categoryId: Long
+  -categoryName: String
+  -sqlQuery: String
+  -allowExcel: Boolean
+  -allowPdf: Boolean
+  -allowCsv: Boolean
+  -timeoutSeconds: Integer
+  -active: Boolean
+  -version: Long
+  -reportType: String
+  -maxExportRows: Long
+}
+
+class ReportEvent <<Entity>> {
+  -- fields --
+  -eventId: String
+  -eventType: String
+  -aggregateType: String
+  -aggregateId: String
+  -aggregateVersion: Long
+  -payload: String
+  -sourceSystem: String
+  -correlationId: String
+  -status: String
+  -eventTimestamp: LocalDateTime
+}
+
+class ReportExecution <<Entity>> {
+  -- fields --
+  -reportDefinitionId: Long
+  -executionStatus: String
+  -executionStartTime: Timestamp
+  -executionEndTime: Timestamp
+  -executionDurationMs: Long
+  -totalRecordCount: Long
+  -requestedBy: String
+  -requestParameters: String
+  -generatedFileId: Long
+  -errorMessage: String
+  -executionSource: String
+  -correlationId: String
+}
+
+class ReportExecutionDetail <<Entity>> {
+  -- fields --
+  -reportExecutionId: Long
+  -stepName: String
+  -stepStatus: String
+  -startTime: Timestamp
+  -endTime: Timestamp
+  -durationMs: Long
+  -message: String
+  -errorMessage: String
+  -stepOrder: Integer
+}
+
+class ReportFile <<Entity>> {
+  -- fields --
+  -fileName: String
+  -originalFileName: String
+  -fileExtension: String
+  -fileSize: Long
+  -bucketName: String
+  -objectName: String
+  -contentType: String
+  -checksum: String
+  -storageProvider: String
+}
+
+class ReportParameter <<Entity>> {
+  -- fields --
+  -reportDefinitionId: Long
+  -parameterName: String
+  -parameterLabel: String
+  -parameterType: String
+  -required: Boolean
+  -defaultValue: String
+  -validationRegex: String
+  -displayOrder: Integer
+  -placeholder: String
+  -helpText: String
+  -maxLength: Integer
+  -minLength: Integer
+}
+
+class ReportSchedule <<Entity>> {
+  -- fields --
+  -reportDefinitionId: Long
+  -scheduleName: String
+  -cronExpression: String
+  -active: Boolean
+  -outputType: String
+  -lastExecutionTime: Timestamp
+  -nextExecutionTime: Timestamp
+  -notifyEmail: String
+  -scheduleParameters: String
+  -lastStatus: String
+}
+
+class ReportTemplate <<Entity>> {
+  -- fields --
+  -reportDefinitionId: Long
+  -templateName: String
+  -sheetName: String
+  -columnsJson: String
+}
+
+class TransactionReport <<Aggregate>> {
+  -- fields --
+  -aggregateId: String
+  -aggregateVersion: Long
+  -lastEventId: String
+  -sourceService: String
+  -payload: String
+  -accountNumber: String
+  -transactionRef: String
+  -transactionType: String
+  -amount: BigDecimal
+  -transactionDate: Timestamp
+  -status: String
+  -reportDate: Timestamp
+}
+
+enum EventStatus <<enumeration>> {
+}
+
+enum ReportExecutionStatus <<enumeration>> {
+}
+
+enum ReportFormat <<enumeration>> {
+  -- fields --
+  -extension: String
+  -contentType: String
+  -- methods --
+  +extension(): String
+  +contentType(): String
+  +from(String value): ReportFormat
+}
+
+enum ReportType <<enumeration>> {
+}
+
+class AccountReportId <<ValueObject>> {
+}
+
+abstract class BaseId <<ValueObject>> {
+  -- fields --
+  -value: T
+  -- methods --
+  +getValue(): T
+  +equals(Object o): boolean
+  +hashCode(): int
+}
+
+class CardReportId <<ValueObject>> {
+}
+
+class InstallmentReportId <<ValueObject>> {
+}
+
+class LoanReportId <<ValueObject>> {
+}
+
+class PartyReportId <<ValueObject>> {
+}
+
+class ProductReportId <<ValueObject>> {
+}
+
+class ReportCategoryId <<ValueObject>> {
+}
+
+class ReportDefinitionId <<ValueObject>> {
+}
+
+class ReportEventId <<ValueObject>> {
+}
+
+class ReportExecutionDetailId <<ValueObject>> {
+}
+
+class ReportExecutionId <<ValueObject>> {
+}
+
+class ReportFileId <<ValueObject>> {
+}
+
+class ReportParameterId <<ValueObject>> {
+}
+
+class ReportScheduleId <<ValueObject>> {
+}
+
+class ReportTemplateId <<ValueObject>> {
+}
+
+class TransactionReportId <<ValueObject>> {
+}
+
+class BatchReportLauncherAdapter <<Configuration>> {
+  .. annotations ..
+  Component
+  -- fields --
+  -jobLauncher: JobLauncher
+  -reportExecutionBatchJob: Job
+  -objectMapper: ObjectMapper
+  -sharedStateRegistry: ReportBatchSharedStateRegistry
+  -- methods --
+  +launch(ReportBatchLaunchRequest request): ConcurrentMap<String, Object>
+  -isUnsuccessful(JobExecution jobExecution): boolean
+  -failureMessage(JobExecution jobExecution): String
+}
+
+class DelegatingReportItemProcessor <<Configuration>> {
+  -- fields --
+  -delegate: ReportBatchProcessor<Object, Object>
+  -context: ReportBatchContext
+  -- methods --
+  +process(Object item): Object
+}
+
+class DelegatingReportItemReader <<Configuration>> {
+  -- fields --
+  -delegate: ReportBatchReader<Object>
+  -context: ReportBatchContext
+  -- methods --
+  +open(ExecutionContext executionContext): void
+  +read(): Object
+  +close(): void
+}
+
+class DelegatingReportItemWriter <<Configuration>> {
+  -- fields --
+  -delegate: ReportBatchWriter<Object>
+  -context: ReportBatchContext
+  -- methods --
+  +write(Chunk<? extends Object> chunk): void
+}
+
+class GenericReportBatchProcessor <<Configuration>> {
+  .. annotations ..
+  Component
+  SuppressWarnings("unchecked")
+  -- fields --
+  -DEFAULT_MAX_EXPORT_ROWS: long
+  -- methods --
+  +supports(ReportDefinition reportDefinition): boolean
+  +process(Map<String, Object> item, ReportBatchContext context): Map<String, Object>
+  -enforceExportLimit(long processedCount, ReportDefinition definition): void
+  -accumulateRows(Map<String, Object> item, ReportBatchContext context): void
+}
+
+class GenericReportBatchWriter <<Configuration>> {
+  .. annotations ..
+  Component
+  -- methods --
+  +supports(ReportDefinition reportDefinition, ReportFormat reportFormat): boolean
+  +write(List<? extends Map<String, Object>> items, ReportBatchContext context): void
+}
+
+class JdbcReportBatchReader <<Configuration>> {
+  .. annotations ..
+  Component
+  SuppressWarnings("unchecked")
+  -- fields --
+  -DEFAULT_MAX_PREVIEW_ROWS: int
+  -dataSource: DataSource
+  -reportTemplateRepository: IReportTemplateRepository
+  -reportSqlGuard: ReportSqlGuard
+  -sharedState: ConcurrentMap<String, Object>
+  -previewLimit: int
+  -connection: Connection
+  -preparedStatement: PreparedStatement
+  -resultSet: ResultSet
+  -columnCount: int
+  -readCount: long
+  -- methods --
+  +supports(ReportDefinition reportDefinition): boolean
+  +open(ReportBatchContext context): void
+  +read(): Map<String, Object>
+  +close(): void
+  -appendPreviewRow(Map<String, Object> row): void
+  -storeColumnNamesIfNeeded(Map<String, Object> row): void
+  -mapRow(ResultSet rs): Map<String, Object>
+  -previewLimit(ReportDefinition definition): int
+  -applyQueryTimeout(PreparedStatement statement, Integer timeoutSeconds): void
+  -bindParameters(PreparedStatement statement, Object[] paramValues): void
+  -closeQuietly(): void
+}
+
+class ReportBatchComponentRegistry <<Configuration>> {
+  .. annotations ..
+  Component
+  SuppressWarnings("unchecked")
+  SuppressWarnings("unchecked")
+  SuppressWarnings("unchecked")
+  -- fields --
+  -readers: List<ReportBatchReader<?>>
+  -processors: List<ReportBatchProcessor<?, ?>>
+  -writers: List<ReportBatchWriter<?>>
+  -- methods --
+  +readerFor(ReportDefinition definition): ReportBatchReader<I>
+  +processorFor(ReportDefinition definition): ReportBatchProcessor<I, O>
+  +writerFor(ReportDefinition definition, ReportFormat format): ReportBatchWriter<O>
+  -missingComponent(String component, String reportCode): ReportingDomainException
+}
+
+class ReportBatchSharedStateRegistry <<Configuration>> {
+  .. annotations ..
+  Component
+  -- fields --
+  -states: ConcurrentHashMap<Long, ConcurrentMap<String, Object>>
+  -- methods --
+  +bind(Long reportExecutionId, ConcurrentMap<String, Object> sharedState): void
+  +release(Long reportExecutionId): ConcurrentMap<String, Object>
+  +get(Long reportExecutionId): ConcurrentMap<String, Object>
+}
+
+class ReportBatchStepCompletionListener <<Configuration>> {
+  .. annotations ..
+  Component
+  Value("${reporting.storage.local-path:report-output}")
+  Value("${reporting.storage.bucket:reporting-service}")
+  SuppressWarnings("unchecked")
+  SuppressWarnings("unchecked")
+  -- fields --
+  -sharedStateRegistry: ReportBatchSharedStateRegistry
+  -reportFormatService: ReportFormatService
+  -reportFileRepository: ReportFileRepository
+  -localStoragePath: Path
+  -bucketName: String
+  -- methods --
+  +afterStep(StepExecution stepExecution): ExitStatus
+  -storeResult(Long reportExecutionId, ReportFormatResult result): ReportFileEntity
+  -sanitizeFileName(String value): String
+  -sha256(byte[] content): String
+}
+
+class ReportJdbcValueConverter <<Configuration>> {
+  -- methods --
+  +convert(Object value): Object
+  -convertOracleValue(Object value): Object
+  -readClob(Clob clob): String
+}
+
+class IReportEventPersistenceAdapter <<Adapter>> {
+  .. annotations ..
+  Component
+  Transactional(propagation = Propagation.REQUIRES_NEW)
+  Transactional(propagation = Propagation.REQUIRES_NEW)
+  Transactional(propagation = Propagation.REQUIRES_NEW)
+  -- fields --
+  -reportEventRepository: ReportEventRepository
+  -objectMapper: ObjectMapper
+  -- methods --
+  +isProcessed(String eventId): boolean
+  +markReceived(EventEnvelope eventEnvelope): void
+  +markProcessed(EventEnvelope eventEnvelope): void
+  +markFailed(EventEnvelope eventEnvelope, String errorMessage): void
+  -fillFromEnvelope(ReportEventEntity entity, EventEnvelope eventEnvelope): void
+  -toJson(EventEnvelope eventEnvelope): String
+}
+
+class IReportProjectionPersistenceAdapter <<Adapter>> {
+  .. annotations ..
+  Component
+  -- fields --
+  -partyReportRepository: PartyReportRepository
+  -cardReportRepository: CardReportRepository
+  -loanReportRepository: LoanReportRepository
+  -productReportRepository: ProductReportRepository
+  -accountReportRepository: AccountReportRepository
+  -transactionReportRepository: TransactionReportRepository
+  -installmentReportRepository: InstallmentReportRepository
+  -partyMapper: PartyReportDataAccessMapper
+  -cardMapper: CardReportDataAccessMapper
+  -loanMapper: LoanReportDataAccessMapper
+  -productMapper: ProductReportDataAccessMapper
+  -accountMapper: AccountReportDataAccessMapper
+  -transactionMapper: TransactionReportDataAccessMapper
+  -installmentMapper: InstallmentReportDataAccessMapper
+  -- methods --
+  +upsertParty(PartyReport partyReport): void
+  +upsertCard(CardReport cardReport): void
+  +upsertLoan(LoanReport loanReport): void
+  +upsertProduct(ProductReport productReport): void
+  +upsertAccount(AccountReport accountReport): void
+  +upsertTransaction(TransactionReport transactionReport): void
+  +upsertInstallment(InstallmentReport installmentReport): void
+  -upsert(ProjectionReport report, E entity, Optional<E> existing, java.util.function.Function<E, E> saver): void
+  -isStale(Long incomingVersion, Long currentVersion): boolean
+}
+
+class LocalReportFileStorageAdapter <<Adapter>> {
+  .. annotations ..
+  Component
+  Value("${reporting.storage.local-path:report-output}")
+  -- fields --
+  -localStoragePath: Path
+  -- methods --
+  +readContent(ReportFile reportFile): byte[]
+}
+
+class ReportDefinitionPersistenceAdapter <<Adapter>> {
+  .. annotations ..
+  Component
+  -- fields --
+  -reportDefinitionRepository: ReportDefinitionRepository
+  -reportDefinitionDataAccessMapper: ReportDefinitionDataAccessMapper
+  -- methods --
+  +create(ReportDefinition reportDefinition): ReportDefinition
+  +update(ReportDefinition reportDefinition): ReportDefinition
+  +findById(Long id): ReportDefinition
+  +findByReportCode(String reportCode): ReportDefinition
+  +search(ReportDefinitionSearchCriteria criteria): Page<ReportDefinition>
+  +deleteById(Long id): void
+  +updateActive(Long id, Boolean active): ReportDefinition
+}
+
+class ReportExecutionDetailPersistenceAdapter <<Adapter>> {
+  .. annotations ..
+  Component
+  -- fields --
+  -reportExecutionDetailRepository: ReportExecutionDetailRepository
+  -reportExecutionDetailDataAccessMapper: ReportExecutionDetailDataAccessMapper
+  -- methods --
+  +save(ReportExecutionDetail detail): ReportExecutionDetail
+}
+
+class ReportExecutionPersistenceAdapter <<Adapter>> {
+  .. annotations ..
+  Component
+  -- fields --
+  -reportExecutionRepository: ReportExecutionRepository
+  -reportExecutionDataAccessMapper: ReportExecutionDataAccessMapper
+  -- methods --
+  +save(ReportExecution reportExecution): ReportExecution
+  +findById(Long id): ReportExecution
+}
+
+class ReportFilePersistenceAdapter <<Adapter>> {
+  .. annotations ..
+  Component
+  -- fields --
+  -reportFileRepository: ReportFileRepository
+  -reportFileDataAccessMapper: ReportFileDataAccessMapper
+  -- methods --
+  +findById(Long id): ReportFile
+}
+
+class ReportParameterPersistenceAdapter <<Adapter>> {
+  .. annotations ..
+  Component
+  -- fields --
+  -reportParameterRepository: ReportParameterRepository
+  -reportParameterDataAccessMapper: ReportParameterDataAccessMapper
+  -- methods --
+  +findByReportDefinitionId(Long reportDefinitionId): List<ReportParameter>
+}
+
+class ReportQueryExecutorAdapter <<Adapter>> {
+  .. annotations ..
+  Component
+  -- fields --
+  -namedParameterJdbcTemplate: NamedParameterJdbcTemplate
+  -- methods --
+  +executeQuery(String sql, Map<String, Object> parameters, Integer timeoutSeconds, int maxRows): List<Map<String, Object>>
+}
+
+class ReportTemplatePersistenceAdapter <<Adapter>> {
+  .. annotations ..
+  Component
+  -- fields --
+  -reportTemplateRepository: ReportTemplateRepository
+  -reportTemplateDataAccessMapper: ReportTemplateDataAccessMapper
+  -- methods --
+  +findDefaultByReportDefinitionId(Long reportDefinitionId): ReportTemplate
+  +findByReportDefinitionIdAndTemplateName(Long reportDefinitionId, String templateName): ReportTemplate
+}
+
+abstract class Audit <<JpaEntity>> {
+  .. annotations ..
+  MappedSuperclass
+  EntityListeners(AuditingEntityListener.class)
+  CreatedDate
+  Column(name = "created_date", updatable = false)
+  CreatedBy
+  Column(name = "created_by", updatable = false)
+  -- fields --
+  -createdDate: LocalDateTime
+  -createdBy: String
+  -lastModifiedDate: LocalDateTime
+  -lastModifiedBy: String
+}
+
+class Auditable <<JpaEntity>> {
+  .. annotations ..
+  MappedSuperclass
+  EntityListeners(AuditingEntityListener.class)
+  Audited
+  CreatedBy
+  Column(name = "created_by", updatable = false)
+  CreatedDate
+  -- fields --
+  -createBy: String
+  -createdDate: Timestamp
+  -lastModifiedBy: String
+  -lastModifiedDate: Timestamp
+}
+
+class ReportCategoryEntity <<JpaEntity>> {
+  .. annotations ..
+  Audited
+  Entity
+  Table(
+        name = "report_category",
+        uniqueConstraints = @UniqueConstraint(name = "uk_report_category_name", columnNames = "category_name")
+  Id
+  GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "report_category_seq")
+  SequenceGenerator(name = "report_category_seq", sequenceName = "REPORT_CATEGORY_SEQ", allocationSize = 1)
+  -- fields --
+  -id: Long
+  -categoryName: String
+  -description: String
+  -active: Boolean
+}
+
+class ReportDefinitionEntity <<JpaEntity>> {
+  .. annotations ..
+  Audited
+  AuditOverride(forClass = Auditable.class)
+  Entity
+  Table(
+        name = "report_definition",
+        uniqueConstraints = @UniqueConstraint(name = "uk_report_definition_code", columnNames = "report_code")
+  Id
+  GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "report_definition_seq")
+  -- fields --
+  -id: Long
+  -reportCode: String
+  -reportName: String
+  -reportDescription: String
+  -category: String
+  -sqlQuery: String
+  -outputType: String
+  -timeoutSeconds: Integer
+  -active: Boolean
+  -version: Integer
+  -maxExportRows: Long
+}
+
+class ReportExecutionDetailEntity <<JpaEntity>> {
+  .. annotations ..
+  Audited
+  AuditOverride(forClass = Auditable.class)
+  Entity
+  Table(name = "report_execution_detail")
+  Id
+  GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "report_execution_detail_seq")
+  -- fields --
+  -id: Long
+  -reportExecutionId: Long
+  -stepName: String
+  -stepStatus: String
+  -startTime: Timestamp
+  -endTime: Timestamp
+  -durationMs: Long
+  -message: String
+  -errorMessage: String
+  -stepOrder: Integer
+}
+
+class ReportExecutionEntity <<JpaEntity>> {
+  .. annotations ..
+  Audited
+  AuditOverride(forClass = Auditable.class)
+  Entity
+  Table(name = "report_execution")
+  Id
+  GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "report_execution_seq")
+  -- fields --
+  -id: Long
+  -reportDefinition: ReportDefinitionEntity
+  -executionStatus: String
+  -executionStartTime: Timestamp
+  -executionEndTime: Timestamp
+  -executionDurationMs: Long
+  -totalRecordCount: Long
+  -requestedBy: String
+  -requestParameters: String
+  -generatedFile: ReportFileEntity
+  -errorMessage: String
+  -executionSource: String
+  -correlationId: String
+}
+
+class ReportFileEntity <<JpaEntity>> {
+  .. annotations ..
+  Audited
+  AuditOverride(forClass = Auditable.class)
+  Entity
+  Table(name = "report_file")
+  Id
+  GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "report_file_seq")
+  -- fields --
+  -id: Long
+  -fileName: String
+  -originalFileName: String
+  -fileExtension: String
+  -fileSize: Long
+  -bucketName: String
+  -objectName: String
+  -contentType: String
+  -checksum: String
+  -storageProvider: String
+}
+
+class ReportParameterEntity <<JpaEntity>> {
+  .. annotations ..
+  Audited
+  AuditOverride(forClass = Auditable.class)
+  Entity
+  Table(name = "report_parameter")
+  Id
+  GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "report_parameter_seq")
+  -- fields --
+  -id: Long
+  -reportDefinition: ReportDefinitionEntity
+  -parameterName: String
+  -parameterLabel: String
+  -parameterType: String
+  -required: Boolean
+  -defaultValue: String
+  -validationRegex: String
+  -displayOrder: Integer
+  -placeholder: String
+  -helpText: String
+  -maxLength: Integer
+  -minLength: Integer
+}
+
+class ReportScheduleEntity <<JpaEntity>> {
+  .. annotations ..
+  Audited
+  AuditOverride(forClass = Auditable.class)
+  Entity
+  Table(name = "report_schedule")
+  Id
+  GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "report_schedule_seq")
+  -- fields --
+  -id: Long
+  -reportDefinition: ReportDefinitionEntity
+  -scheduleName: String
+  -cronExpression: String
+  -active: Boolean
+  -outputType: String
+  -lastExecutionTime: Timestamp
+  -nextExecutionTime: Timestamp
+  -notifyEmail: String
+  -scheduleParameters: String
+  -lastStatus: String
+}
+
+class ReportTemplateEntity <<JpaEntity>> {
+  .. annotations ..
+  Audited
+  Entity
+  Table(
+        name = "report_template",
+        uniqueConstraints = @UniqueConstraint(name = "uk_report_template_name", columnNames = {"report_definition_id", "template_name"})
+  Id
+  GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "report_template_seq")
+  SequenceGenerator(name = "report_template_seq", sequenceName = "REPORT_TEMPLATE_SEQ", allocationSize = 1)
+  -- fields --
+  -id: Long
+  -reportDefinition: ReportDefinitionEntity
+  -templateName: String
+  -sheetName: String
+  -columnsJson: String
+}
+
+class AccountReportEntityQuery <<JpaEntity>> {
+  .. annotations ..
+  Entity
+  Table(
+        name = "report_account",
+        indexes = @Index(
+                name = "idx_report_account_number",
+                columnList = "account_number"
+        )
+  Column(name = "party_id")
+  Column(name = "national_code", length = 20)
+  Column(name = "party_name", length = 200)
+  Column(name = "account_number", length = 50)
+  -- fields --
+  -partyId: Long
+  -nationalCode: String
+  -partyName: String
+  -accountNumber: String
+  -accountType: String
+  -balance: BigDecimal
+  -accountCreatedAt: LocalDateTime
+  -accountUpdatedAt: LocalDateTime
+  -status: String
+  -payload: String
+}
+
+class CardReportEntityQuery <<JpaEntity>> {
+  .. annotations ..
+  Entity
+  Table(name = "report_card")
+  Column(name = "national_code", length = 20)
+  Column(name = "card_number", length = 30)
+  Column(name = "account_number", length = 50)
+  Column(name = "card_status", length = 50)
+  -- fields --
+  -nationalCode: String
+  -cardNumber: String
+  -accountNumber: String
+  -cardStatus: String
+  -status: String
+  -reportDate: Timestamp
+  -payload: String
+}
+
+class InstallmentReportEntityQuery <<JpaEntity>> {
+  .. annotations ..
+  Entity
+  Table(
+        name = "report_installment",
+        indexes = {
+                @Index(name = "idx_report_installment_loan", columnList = "loan_id")
+  Index(name = "idx_report_installment_loan_file", columnList = "loan_file_no")
+  Index(name = "idx_report_installment_due_date", columnList = "due_date")
+  Index(name = "idx_report_installment_status", columnList = "installment_status")
+  ManyToOne(fetch = FetchType.LAZY, optional = false)
+  -- fields --
+  -loan: LoanReportEntityQuery
+  -sourceInstallmentId: Long
+  -loanFileNo: String
+  -installmentNo: Integer
+  -dueDate: LocalDateTime
+  -installmentAmount: BigDecimal
+  -totalPaid: BigDecimal
+  -installmentStatus: String
+  -lastPaymentDate: LocalDateTime
+  -remainingTotal: BigDecimal
+  -remainingPrincipal: BigDecimal
+  -remainingInterest: BigDecimal
+  -remainingPenalty: BigDecimal
+  -remainingPostMaturityInterest: BigDecimal
+  -payload: String
+}
+
+class LoanReportEntityQuery <<JpaEntity>> {
+  .. annotations ..
+  Entity
+  Table(
+        name = "report_loan",
+        indexes = {
+                @Index(name = "idx_report_loan_party", columnList = "party_id")
+  Index(name = "idx_report_loan_file_no", columnList = "file_no")
+  Index(name = "idx_report_loan_loan_file_no", columnList = "loan_file_no")
+  Index(name = "idx_report_loan_national_code", columnList = "national_code")
+  Index(name = "idx_report_loan_unit_code", columnList = "unit_code")
+  -- fields --
+  -installments: List<InstallmentReportEntityQuery>
+  -sourceLoanId: Long
+  -partyId: Long
+  -nationalCode: String
+  -nationalName: String
+  -fileNo: String
+  -loanFileNo: String
+  -loanProfileName: String
+  -cardPan: String
+  -unitCode: String
+  -unitName: String
+  -creationDate: LocalDateTime
+  -requestedAmount: BigDecimal
+  -totalInterest: BigDecimal
+  -installmentCount: Integer
+  -paidInstallmentCount: Integer
+  -firstInstallmentDate: LocalDateTime
+  -lastInstallmentDate: LocalDateTime
+  -loanStatus: String
+  -totalRemainingPrincipal: BigDecimal
+  -totalRemainingInterest: BigDecimal
+  -totalRemainingPenalty: BigDecimal
+  -totalRemainingPostMaturityInterest: BigDecimal
+  -totalRemainingBeforeDueDate: BigDecimal
+  -totalRemainingPastDueDate: BigDecimal
+  .. 1 more fields ..
+}
+
+class PartyReportEntityQuery <<JpaEntity>> {
+  .. annotations ..
+  Entity
+  Table(name = "report_party")
+  Column(name = "national_code", length = 20)
+  Column(name = "party_no", length = 50)
+  Column(name = "party_name", length = 150)
+  Column(name = "party_family", length = 150)
+  -- fields --
+  -nationalCode: String
+  -partyNo: String
+  -partyName: String
+  -partyFamily: String
+  -mobile: String
+  -email: String
+  -status: String
+  -reportDate: Timestamp
+  -payload: String
+}
+
+class ProductReportEntityQuery <<JpaEntity>> {
+  .. annotations ..
+  Entity
+  Table(name = "report_product")
+  Column(name = "product_code")
+  Column(name = "product_name", length = 200)
+  Column(name = "national_id", length = 20)
+  Column(name = "status", length = 50)
+  -- fields --
+  -productCode: Long
+  -productName: String
+  -nationalId: String
+  -status: String
+  -reportDate: Timestamp
+  -payload: String
+}
+
+class public <<JpaEntity>> {
+  .. annotations ..
+  MappedSuperclass
+  Id
+  GeneratedValue(
+            strategy = GenerationType.SEQUENCE,
+            generator = "report_seq"
+    )
+  SequenceGenerator(
+            name = "report_seq",
+            sequenceName = "REPORT_SEQ",
+            allocationSize = 1
+    )
+  Column(name = "aggregate_id", nullable = false, unique = true)
+  Column(name = "aggregate_version", nullable = false)
+  -- fields --
+  -id: Long
+  -aggregateId: String
+  -aggregateVersion: Long
+  -lastEventId: String
+  -deleted: Boolean
+}
+
+class ReportEventEntity <<JpaEntity>> {
+  .. annotations ..
+  Entity
+  Table(
+        name = "report_event",
+        indexes = {
+                @Index(
+                        name = "idx_report_event_aggregate_id",
+                        columnList = "aggregate_id"
+                )
+  Index(
+                        name = "idx_report_event_event_type",
+                        columnList = "event_type"
+                )
+  Index(
+                        name = "idx_report_event_timestamp",
+                        columnList = "event_timestamp"
+                )
+  Id
+  GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "report_event_seq")
+  -- fields --
+  -id: Long
+  -eventId: String
+  -eventType: String
+  -aggregateType: String
+  -aggregateId: String
+  -aggregateVersion: Long
+  -payload: String
+  -sourceSystem: String
+  -correlationId: String
+  -status: EventStatus
+  -eventTimestamp: LocalDateTime
+  -processedAt: LocalDateTime
+  -errorMessage: String
+}
+
+class TransactionReportEntityQuery <<JpaEntity>> {
+  .. annotations ..
+  Audited
+  Entity
+  Table(name = "report_transaction")
+  Column(name = "account_number", length = 50)
+  Column(name = "transaction_ref", length = 100)
+  Column(name = "transaction_type", length = 50)
+  -- fields --
+  -accountNumber: String
+  -transactionRef: String
+  -transactionType: String
+  -amount: BigDecimal
+  -transactionDate: Timestamp
+  -status: String
+  -reportDate: Timestamp
+  -payload: String
+}
+
+interface AccountReportDataAccessMapper <<interface>> {
+  .. annotations ..
+  Mapper(componentModel = "spring", imports = AccountReportId.class)
+  Mapping(target = "id",
+            expression = "java(entity.getId()
+  Mapping(target = "id",
+            expression = "java(model.getId()
+}
+
+interface CardReportDataAccessMapper <<interface>> {
+  .. annotations ..
+  Mapper(componentModel = "spring", imports = CardReportId.class)
+  Mapping(target = "id",
+            expression = "java(entity.getId()
+  Mapping(target = "id",
+            expression = "java(model.getId()
+}
+
+interface InstallmentReportDataAccessMapper <<interface>> {
+  .. annotations ..
+  Mapper(componentModel = "spring", imports = InstallmentReportId.class)
+  Mapping(target = "loanAggregateId", source = "loan.aggregateId")
+  Mapping(target = "id",
+            expression = "java(entity.getId()
+  Mapping(target = "loan", ignore = true)
+  Mapping(target = "id",
+            expression = "java(model.getId()
+}
+
+interface LoanReportDataAccessMapper <<interface>> {
+  .. annotations ..
+  Mapper(componentModel = "spring", imports = LoanReportId.class)
+  Mapping(target = "id",
+            expression = "java(entity.getId()
+  Mapping(target = "id",
+            expression = "java(model.getId()
+}
+
+interface PartyReportDataAccessMapper <<interface>> {
+  .. annotations ..
+  Mapper(componentModel = "spring", imports = PartyReportId.class)
+  Mapping(target = "id",
+            expression = "java(entity.getId()
+  Mapping(target = "id",
+            expression = "java(model.getId()
+}
+
+interface ProductReportDataAccessMapper <<interface>> {
+  .. annotations ..
+  Mapper(componentModel = "spring", imports = ProductReportId.class)
+  Mapping(target = "id",
+            expression = "java(entity.getId()
+  Mapping(target = "id",
+            expression = "java(model.getId()
+}
+
+interface ReportCategoryDataAccessMapper <<interface>> {
+  .. annotations ..
+  Mapper(componentModel = "spring", imports = ReportCategoryId.class)
+  Mapping(target = "id",
+            expression = "java(entity.getId()
+  Mapping(target = "id",
+            expression = "java(model.getId()
+}
+
+interface ReportDefinitionDataAccessMapper <<interface>> {
+  .. annotations ..
+  Mapper(componentModel = "spring", imports = ReportDefinitionId.class)
+  Mapping(target = "id",
+            expression = "java(entity.getId()
+  Mapping(target = "categoryId", ignore = true)
+  Mapping(target = "categoryName", source = "category")
+  Mapping(target = "allowExcel", expression = "java(\"XLSX\".equalsIgnoreCase(entity.getOutputType()
+  Mapping(target = "allowPdf", ignore = true)
+}
+
+interface ReportEventDataAccessMapper <<interface>> {
+  .. annotations ..
+  Mapper(componentModel = "spring", imports = ReportEventId.class)
+  Mapping(target = "id",
+            expression = "java(entity.getId()
+  Mapping(target = "id",
+            expression = "java(model.getId()
+}
+
+interface ReportExecutionDataAccessMapper <<interface>> {
+  .. annotations ..
+  Mapper(componentModel = "spring", imports = ReportExecutionId.class)
+  Mapping(target = "id",
+            expression = "java(entity.getId()
+  Mapping(target = "reportDefinitionId",
+            expression = "java(entity.getReportDefinition()
+  Mapping(target = "generatedFileId",
+            expression = "java(entity.getGeneratedFile()
+  Mapping(target = "id",
+            expression = "java(model.getId()
+  Mapping(target = "reportDefinition",
+            expression = "java(toReportDefinitionEntity(model.getReportDefinitionId()
+}
+
+interface ReportExecutionDetailDataAccessMapper <<interface>> {
+  .. annotations ..
+  Mapper(componentModel = "spring", imports = ReportExecutionDetailId.class)
+  Mapping(target = "id",
+            expression = "java(entity.getId()
+  Mapping(target = "id",
+            expression = "java(model.getId()
+}
+
+interface ReportFileDataAccessMapper <<interface>> {
+  .. annotations ..
+  Mapper(componentModel = "spring", imports = ReportFileId.class)
+  Mapping(target = "id",
+            expression = "java(entity.getId()
+  Mapping(target = "id",
+            expression = "java(model.getId()
+}
+
+interface ReportParameterDataAccessMapper <<interface>> {
+  .. annotations ..
+  Mapper(componentModel = "spring", imports = ReportParameterId.class)
+  Mapping(target = "id",
+            expression = "java(entity.getId()
+  Mapping(target = "id",
+            expression = "java(model.getId()
+}
+
+interface ReportScheduleDataAccessMapper <<interface>> {
+  .. annotations ..
+  Mapper(componentModel = "spring", imports = ReportScheduleId.class)
+  Mapping(target = "id",
+            expression = "java(entity.getId()
+  Mapping(target = "id",
+            expression = "java(model.getId()
+}
+
+interface ReportTemplateDataAccessMapper <<interface>> {
+  .. annotations ..
+  Mapper(componentModel = "spring", imports = ReportTemplateId.class)
+  Mapping(target = "id",
+            expression = "java(entity.getId()
+  Mapping(target = "reportDefinitionId", source = "reportDefinition.id")
+  Mapping(target = "id",
+            expression = "java(model.getId()
+  Mapping(target = "reportDefinition",
+            expression = "java(toReportDefinitionEntity(model.getReportDefinitionId()
+}
+
+interface TransactionReportDataAccessMapper <<interface>> {
+  .. annotations ..
+  Mapper(componentModel = "spring", imports = TransactionReportId.class)
+  Mapping(target = "id",
+            expression = "java(entity.getId()
+  Mapping(target = "id",
+            expression = "java(model.getId()
+}
+
+interface AccountReportRepository <<Repository>> {
+}
+
+interface CardReportRepository <<Repository>> {
+}
+
+interface InstallmentReportRepository <<Repository>> {
+}
+
+interface LoanReportRepository <<Repository>> {
+}
+
+interface PartyReportRepository <<Repository>> {
+}
+
+interface ProductReportRepository <<Repository>> {
+}
+
+interface ReportDefinitionRepository <<Repository>> {
+}
+
+interface ReportEventRepository <<Repository>> {
+}
+
+interface ReportExecutionDetailRepository <<Repository>> {
+}
+
+interface ReportExecutionRepository <<Repository>> {
+}
+
+interface ReportFileRepository <<Repository>> {
+}
+
+interface ReportParameterRepository <<Repository>> {
+}
+
+interface ReportScheduleRepository <<Repository>> {
+}
+
+interface ReportTemplateRepository <<Repository>> {
+}
+
+interface TransactionReportRepository <<Repository>> {
+}
+
+class ReportScheduleExecutionJob {
+  .. annotations ..
+  Component
+  Scheduled(fixedDelayString = "${reporting.scheduler.fixed-delay-ms:60000}")
+  -- fields --
+  -LOAN_PORTFOLIO_REPORT_CODE: String
+  -reportScheduleRepository: ReportScheduleRepository
+  -reportDefinitionRepository: ReportDefinitionRepository
+  -reportExecutionService: ReportExecutionService
+  -- methods --
+  +executeDueSchedules(): void
+  -isDue(ReportScheduleEntity schedule, LocalDateTime now): boolean
+  -executeSchedule(ReportScheduleEntity schedule, LocalDateTime now): void
+  -defaultParameters(ReportDefinitionEntity definition): Map<String, String>
+  -updateNextExecution(ReportScheduleEntity schedule, LocalDateTime from): void
+}
+
+class ReportDefinitionSpecification {
+  -- methods --
+  +from(ReportDefinitionSearchCriteria criteria): Specification<ReportDefinitionEntity>
+}
+
+class CsvReportFormatHandler <<Service>> {
+  .. annotations ..
+  Component
+  -- fields --
+  -FILE_TIMESTAMP: DateTimeFormatter
+  -columnResolver: ReportTemplateColumnResolver
+  -- methods --
+  +supports(ReportFormat format): boolean
+  +format(ReportFormatRequest request): ReportFormatResult
+  -stringValue(Object value): String
+  -escape(String value): String
+  -fileName(ReportFormatRequest request, ReportFormat format): String
+  -sanitize(String value): String
+}
+
+class JsonReportFormatHandler <<Service>> {
+  .. annotations ..
+  Component
+  -- fields --
+  -FILE_TIMESTAMP: DateTimeFormatter
+  -objectMapper: ObjectMapper
+  -- methods --
+  +supports(ReportFormat format): boolean
+  +format(ReportFormatRequest request): ReportFormatResult
+  -fileName(ReportFormatRequest request, ReportFormat format): String
+  -sanitize(String value): String
+}
+
+class ReportFormatColumn <<Service>> {
+  -- fields --
+  -field: String
+  -title: String
+  -width: Integer
+  -- methods --
+  +titleOrField(): String
+}
+
+interface ReportFormatHandler <<Port>> {
+}
+
+class ReportFormatHandlerRegistry <<Service>> {
+  .. annotations ..
+  Component
+  -- fields --
+  -handlers: List<ReportFormatHandler>
+  -- methods --
+  +findHandler(ReportFormat format): ReportFormatHandler
+}
+
+class ReportFormatRequest <<Service>> {
+  -- fields --
+  -reportDefinition: ReportDefinition
+  -reportExecution: ReportExecution
+  -reportTemplate: ReportTemplate
+  -format: ReportFormat
+  -rows: List<Map<String, Object>>
+  -parameters: Map<String, Object>
+}
+
+class ReportFormatResult <<Service>> {
+  -- fields --
+  -fileName: String
+  -fileExtension: String
+  -contentType: String
+  -content: byte[]
+  -- methods --
+  +fileSize(): long
+}
+
+class ReportFormatService <<Service>> {
+  .. annotations ..
+  Service
+  -- fields --
+  -handlerRegistry: ReportFormatHandlerRegistry
+  -- methods --
+  +format(ReportFormatRequest request): ReportFormatResult
+}
+
+class ReportTemplateColumnResolver <<Service>> {
+  .. annotations ..
+  Component
+  -- fields --
+  -objectMapper: ObjectMapper
+  -- methods --
+  +resolveColumns(ReportTemplate template, List<Map<String, Object>> rows): List<ReportFormatColumn>
+  -toColumn(String field): ReportFormatColumn
+}
+
+class RabbitMqConfiguration <<Configuration>> {
+  .. annotations ..
+  Configuration
+  EnableRabbit
+  Bean
+  Value("${reporting.rabbitmq.exchange:banking.integration.events}")
+  Bean
+  Value("${reporting.rabbitmq.dead-letter-exchange:banking.integration.dlx}")
+  -- methods --
+  +integrationEventsExchange(@Value("${reporting.rabbitmq.exchange:banking.integration.events}"): TopicExchange
+  +deadLetterExchange(@Value("${reporting.rabbitmq.dead-letter-exchange:banking.integration.dlx}"): DirectExchange
+  +partyQueue(@Value("${reporting.rabbitmq.queues.party:reporting.party.events}"): Queue
+  +cardQueue(@Value("${reporting.rabbitmq.queues.card:reporting.card.events}"): Queue
+  +loanQueue(@Value("${reporting.rabbitmq.queues.loan:reporting.loan.events}"): Queue
+  +accountingQueue(@Value("${reporting.rabbitmq.queues.accounting:reporting.accounting.events}"): Queue
+  +productQueue(@Value("${reporting.rabbitmq.queues.product:reporting.product.events}"): Queue
+  +partyBinding(Queue partyQueue, TopicExchange integrationEventsExchange, @Value("${reporting.rabbitmq.routing-keys.party:party.events}"): Binding
+  +cardBinding(Queue cardQueue, TopicExchange integrationEventsExchange, @Value("${reporting.rabbitmq.routing-keys.card:card.events}"): Binding
+  +loanBinding(Queue loanQueue, TopicExchange integrationEventsExchange, @Value("${reporting.rabbitmq.routing-keys.loan:loan.events}"): Binding
+  +accountingBinding(Queue accountingQueue, TopicExchange integrationEventsExchange, @Value("${reporting.rabbitmq.routing-keys.accounting:accounting.events}"): Binding
+  +productBinding(Queue productQueue, TopicExchange integrationEventsExchange, @Value("${reporting.rabbitmq.routing-keys.product:product.events}"): Binding
+  +reportingRabbitListenerContainerFactory(ConnectionFactory connectionFactory): SimpleRabbitListenerContainerFactory
+  -deadLetterQueue(String queueName, String dlxName): Queue
+}
+
+class ReportingEventConsumer <<Consumer>> {
+  .. annotations ..
+  Component
+  RabbitListener(
+            queues = "${reporting.rabbitmq.queues.party:reporting.party.events}",
+            containerFactory = "reportingRabbitListenerContainerFactory"
+    )
+  RabbitListener(
+            queues = "${reporting.rabbitmq.queues.card:reporting.card.events}",
+            containerFactory = "reportingRabbitListenerContainerFactory"
+    )
+  RabbitListener(
+            queues = "${reporting.rabbitmq.queues.loan:reporting.loan.events}",
+            containerFactory = "reportingRabbitListenerContainerFactory"
+    )
+  RabbitListener(
+            queues = "${reporting.rabbitmq.queues.accounting:reporting.accounting.events}",
+            containerFactory = "reportingRabbitListenerContainerFactory"
+    )
+  RabbitListener(
+            queues = "${reporting.rabbitmq.queues.product:reporting.product.events}",
+            containerFactory = "reportingRabbitListenerContainerFactory"
+    )
+  -- fields --
+  -reportingEventProcessor: ReportingEventProcessor
+  -- methods --
+  +consumePartyEvent(Message message, Channel channel): void
+  +consumeCardEvent(Message message, Channel channel): void
+  +consumeLoanEvent(Message message, Channel channel): void
+  +consumeAccountingEvent(Message message, Channel channel): void
+  +consumeProductEvent(Message message, Channel channel): void
+  -consume(Message message, Channel channel): void
+}
+
+class ReportingEventProcessor <<Processor>> {
+  .. annotations ..
+  Component
+  -- fields --
+  -objectMapper: ObjectMapper
+  -reportingSyncService: ReportingSyncService
+  -- methods --
+  +process(String messageBody): void
+}
+
+PagedSearchCommand <|-- SearchReportDefinitionCommand
+ProjectionEventDispatcher <|.. ProjectionEventDispatcherImpl
+ProjectionEventHandler <|.. AbstractProjectionEventHandler
+AbstractProjectionEventHandler <|-- AccountProjectionEventHandler
+AbstractProjectionEventHandler <|-- CardProjectionEventHandler
+AbstractProjectionEventHandler <|-- InstallmentProjectionEventHandler
+AbstractProjectionEventHandler <|-- LoanProjectionEventHandler
+AbstractProjectionEventHandler <|-- PartyProjectionEventHandler
+AbstractProjectionEventHandler <|-- ProductProjectionEventHandler
+AbstractProjectionEventHandler <|-- TransactionProjectionEventHandler
+AccountReportProjectionService <|.. AccountReportProjectionServiceImpl
+CardReportProjectionService <|.. CardReportProjectionServiceImpl
+InstallmentReportProjectionService <|.. InstallmentReportProjectionServiceImpl
+LoanReportProjectionService <|.. LoanReportProjectionServiceImpl
+PartyReportProjectionService <|.. PartyReportProjectionServiceImpl
+ProductReportProjectionService <|.. ProductReportProjectionServiceImpl
+ReportDefinitionService <|.. ReportDefinitionServiceImpl
+ReportExecutionService <|.. ReportExecutionServiceImpl
+ReportingSyncService <|.. ReportingSyncServiceImpl
+TransactionReportProjectionService <|.. TransactionReportProjectionServiceImpl
+AggregateRoot <|-- AccountReport
+ProjectionReport <|.. AccountReport
+BaseEntity <|-- AggregateRoot
+AggregateRoot <|-- CardReport
+ProjectionReport <|.. CardReport
+AggregateRoot <|-- InstallmentReport
+ProjectionReport <|.. InstallmentReport
+AggregateRoot <|-- LoanReport
+ProjectionReport <|.. LoanReport
+AggregateRoot <|-- PartyReport
+ProjectionReport <|.. PartyReport
+AggregateRoot <|-- ProductReport
+ProjectionReport <|.. ProductReport
+BaseEntity <|-- ReportCategory
+AggregateRoot <|-- ReportDefinition
+AggregateRoot <|-- ReportEvent
+AggregateRoot <|-- ReportExecution
+BaseEntity <|-- ReportExecutionDetail
+BaseEntity <|-- ReportFile
+BaseEntity <|-- ReportParameter
+BaseEntity <|-- ReportSchedule
+BaseEntity <|-- ReportTemplate
+AggregateRoot <|-- TransactionReport
+ProjectionReport <|.. TransactionReport
+BaseId <|-- AccountReportId
+BaseId <|-- CardReportId
+BaseId <|-- InstallmentReportId
+BaseId <|-- LoanReportId
+BaseId <|-- PartyReportId
+BaseId <|-- ProductReportId
+BaseId <|-- ReportCategoryId
+BaseId <|-- ReportDefinitionId
+BaseId <|-- ReportEventId
+BaseId <|-- ReportExecutionDetailId
+BaseId <|-- ReportExecutionId
+BaseId <|-- ReportFileId
+BaseId <|-- ReportParameterId
+BaseId <|-- ReportScheduleId
+BaseId <|-- ReportTemplateId
+BaseId <|-- TransactionReportId
+ReportBatchLauncherPort <|.. BatchReportLauncherAdapter
+IReportEventRepository <|.. IReportEventPersistenceAdapter
+IReportProjectionRepository <|.. IReportProjectionPersistenceAdapter
+ReportFileStoragePort <|.. LocalReportFileStorageAdapter
+IReportDefinitionRepository <|.. ReportDefinitionPersistenceAdapter
+IReportExecutionDetailRepository <|.. ReportExecutionDetailPersistenceAdapter
+IReportExecutionRepository <|.. ReportExecutionPersistenceAdapter
+IReportFileRepository <|.. ReportFilePersistenceAdapter
+IReportParameterRepository <|.. ReportParameterPersistenceAdapter
+ReportQueryExecutorPort <|.. ReportQueryExecutorAdapter
+IReportTemplateRepository <|.. ReportTemplatePersistenceAdapter
+Auditable <|-- ReportCategoryEntity
+Auditable <|-- ReportDefinitionEntity
+Auditable <|-- ReportExecutionDetailEntity
+Auditable <|-- ReportExecutionEntity
+Auditable <|-- ReportFileEntity
+Auditable <|-- ReportParameterEntity
+Auditable <|-- ReportScheduleEntity
+Auditable <|-- ReportTemplateEntity
+Audit <|-- public
+Audit <|-- ReportEventEntity
+ReportFormatHandler <|.. CsvReportFormatHandler
+ReportFormatHandler <|.. JsonReportFormatHandler
+@enduml

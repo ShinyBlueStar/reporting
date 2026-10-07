@@ -1,0 +1,86 @@
+server:
+  port: 8021
+
+reporting:
+  api:
+    public-base-url: http://localhost:8022
+
+spring:
+  datasource:
+    url: ${DB_URL:jdbc:oracle:thin:@//localhost:1521/FREEPDB1}
+    username: ${DB_USERNAME:reporting}
+    password: ${DB_PASSWORD:reporting}
+    driver-class-name: oracle.jdbc.OracleDriver
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME:guest}
+    password: ${RABBITMQ_PASSWORD:guest}
+    ui-url: ${RABBITMQ_UI_URL:http://localhost:15672}
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+
+    show-sql: false
+
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.OracleDialect
+
+      org:
+        hibernate:
+          envers:
+            audit_table_suffix: _AUD
+            store_data_at_delete: true
+            revision_field_name: rev
+            revision_type_field_name: revtype
+
+  flyway:
+    enabled: false
+    baseline-on-migrate: false
+    baseline-version: 1
+    schemas: REPORTING
+    locations: classpath:db/migration
+    out-of-order: false
+    group: true
+
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+
+  cache:
+    type: redis
+
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_URL:http://localhost:8761/eureka}
+
+    enabled: ${EUREKA_CLIENT_ENABLED:false}
+    register-with-eureka: true
+    fetch-registry: true
+
+
+info:
+  app:
+    name: Reporting Service
+    version: 1.0.0
+    description: Reporting Service API
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+    config-url: /v3/api-docs/swagger-config
+    url: /v3/api-docs
+    operations-sorter: method
+    tags-sorter: alpha
+
+  api-docs:
+    path: /v3/api-docs
+
+logging:
+  level:
+    org.flywaydb: INFO

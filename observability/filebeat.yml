@@ -1,0 +1,29 @@
+# Ships the reporting-service container's ECS JSON logs (profile "json") to Elasticsearch.
+filebeat.inputs:
+  - type: filestream
+    id: docker-containers
+    paths:
+      - /var/lib/docker/containers/*/*.log
+    parsers:
+      - container: ~
+      - ndjson:
+          target: ""
+          overwrite_keys: true
+          add_error_key: true
+
+processors:
+  - add_docker_metadata: ~
+  - drop_event:
+      when:
+        not:
+          equals:
+            container.name: reporting-service
+
+output.elasticsearch:
+  hosts: ["http://elasticsearch:9200"]
+  index: "reporting-service-logs-%{+yyyy.MM.dd}"
+
+setup.template.name: "reporting-service-logs"
+setup.template.pattern: "reporting-service-logs-*"
+setup.ilm.enabled: false
+logging.level: warning

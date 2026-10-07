@@ -1,0 +1,97 @@
+@startuml
+title reporting-service — ReportFormat
+skinparam classAttributeIconSize 0
+skinparam linetype ortho
+hide empty members
+
+class CsvReportFormatHandler <<Service>> {
+  .. annotations ..
+  Component
+  -- fields --
+  -FILE_TIMESTAMP: DateTimeFormatter
+  -columnResolver: ReportTemplateColumnResolver
+  -- methods --
+  +supports(ReportFormat format): boolean
+  +format(ReportFormatRequest request): ReportFormatResult
+  -stringValue(Object value): String
+  -escape(String value): String
+  -fileName(ReportFormatRequest request, ReportFormat format): String
+  -sanitize(String value): String
+}
+
+class JsonReportFormatHandler <<Service>> {
+  .. annotations ..
+  Component
+  -- fields --
+  -FILE_TIMESTAMP: DateTimeFormatter
+  -objectMapper: ObjectMapper
+  -- methods --
+  +supports(ReportFormat format): boolean
+  +format(ReportFormatRequest request): ReportFormatResult
+  -fileName(ReportFormatRequest request, ReportFormat format): String
+  -sanitize(String value): String
+}
+
+class ReportFormatColumn <<Service>> {
+  -- fields --
+  -field: String
+  -title: String
+  -width: Integer
+  -- methods --
+  +titleOrField(): String
+}
+
+interface ReportFormatHandler <<Port>> {
+}
+
+class ReportFormatHandlerRegistry <<Service>> {
+  .. annotations ..
+  Component
+  -- fields --
+  -handlers: List<ReportFormatHandler>
+  -- methods --
+  +findHandler(ReportFormat format): ReportFormatHandler
+}
+
+class ReportFormatRequest <<Service>> {
+  -- fields --
+  -reportDefinition: ReportDefinition
+  -reportExecution: ReportExecution
+  -reportTemplate: ReportTemplate
+  -format: ReportFormat
+  -rows: List<Map<String, Object>>
+  -parameters: Map<String, Object>
+}
+
+class ReportFormatResult <<Service>> {
+  -- fields --
+  -fileName: String
+  -fileExtension: String
+  -contentType: String
+  -content: byte[]
+  -- methods --
+  +fileSize(): long
+}
+
+class ReportFormatService <<Service>> {
+  .. annotations ..
+  Service
+  -- fields --
+  -handlerRegistry: ReportFormatHandlerRegistry
+  -- methods --
+  +format(ReportFormatRequest request): ReportFormatResult
+}
+
+class ReportTemplateColumnResolver <<Service>> {
+  .. annotations ..
+  Component
+  -- fields --
+  -objectMapper: ObjectMapper
+  -- methods --
+  +resolveColumns(ReportTemplate template, List<Map<String, Object>> rows): List<ReportFormatColumn>
+  -toColumn(String field): ReportFormatColumn
+}
+
+ReportFormatHandler <|.. CsvReportFormatHandler
+ReportFormatHandler <|.. JsonReportFormatHandler
+@enduml

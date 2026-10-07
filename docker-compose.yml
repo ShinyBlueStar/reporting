@@ -1,0 +1,180 @@
+name: reporting
+
+services:
+  reporting-service:
+    build: .
+    container_name: reporting-service
+    ports:
+      - "8021:8021"
+    environment:
+      SPRING_PROFILES_ACTIVE: development,json   # "json" = structured ECS logs on stdout (ELK-ready)
+      SERVER_PORT: 8021
+      DB_URL: jdbc:oracle:thin:@//oracle:1521/FREEPDB1
+      DB_USERNAME: ${DB_USERNAME:-reporting}
+      DB_PASSWORD: ${DB_PASSWORD:-reporting}
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USERNAME: ${RABBITMQ_USERNAME:-guest}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-guest}
+      REDIS_HOST: redis
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-redis_password}
+      EUREKA_CLIENT_ENABLED: "false"             # no discovery server in this stack
+      REPORTING_STORAGE_TYPE: s3
+      S3_ENDPOINT: http://seaweedfs:8333
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY:-reporting-access-key}
+      S3_SECRET_KEY: ${S3_SECRET_KEY:-reporting-secret-key-change-me}
+      S3_BUCKET: reporting-service
+      REPORTING_SECURITY_ENABLED: ${REPORTING_SECURITY_ENABLED:-true}
+      REPORTING_JWT_HMAC_SECRET: ${REPORTING_JWT_HMAC_SECRET:-dev-only-secret-change-me-0123456789abcdef}
+    volumes:
+      - report-output:/app/report-output
+    depends_on:
+      oracle:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      seaweedfs:
+        condition: service_healthy
+
+  # S3-compatible object storage for generated reports. The app only speaks the S3 API, so this can be
+  # swapped for AWS S3, Ceph RGW, Garage or MinIO by changing S3_* variables (MinIO CE is archived upstream).
+  seaweedfs:
+    image: chrislusf/seaweedfs:latest
+    container_name: reporting-seaweedfs
+    command: ["server", "-dir=/data", "-s3", "-s3.config=/etc/seaweedfs/s3.json", "-ip=seaweedfs"]
+    ports:
+      - "8333:8333"
+    volumes:
+      - seaweedfs-data:/data
+      - ./docker/seaweedfs/s3.json:/etc/seaweedfs/s3.json:ro
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:9333/cluster/status >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  oracle:
+    image: gvenzl/oracle-free:23-slim
+    container_name: reporting-oracle
+    environment:
+      ORACLE_PASSWORD: ${ORACLE_PASSWORD:-oracle_password}
+      APP_USER: ${DB_USERNAME:-reporting}
+      APP_USER_PASSWORD: ${DB_PASSWORD:-reporting}
+    ports:
+      - "1521:1521"
+    volumes:
+      - oracle-data:/opt/oracle/oradata
+    healthcheck:
+      test: ["CMD", "healthcheck.sh"]
+      interval: 15s
+      timeout: 10s
+      retries: 20
+      start_period: 60s
+
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    container_name: reporting-rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USERNAME:-guest}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-guest}
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: reporting-redis
+    command: ["redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD:-redis_password}"]
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-redis_password}
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$${REDIS_PASSWORD:-redis_password}\" ping | grep PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  # Optional metrics stack: docker compose --profile monitoring up
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    container_name: reporting-prometheus
+    profiles: ["monitoring"]
+    volumes:
+      - ./observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "9090:9090"
+    depends_on:
+      - reporting-service
+
+  # Optional log stack: docker compose --profile elk up  (set SPRING_PROFILES_ACTIVE=development,json)
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.15.0
+    container_name: reporting-elasticsearch
+    profiles: ["elk"]
+    environment:
+      discovery.type: single-node
+      xpack.security.enabled: "false"   # local development only
+      ES_JAVA_OPTS: "-Xms512m -Xmx512m"
+    ports:
+      - "9200:9200"
+    volumes:
+      - es-data:/usr/share/elasticsearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:9200/_cluster/health || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 15
+      start_period: 30s
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.15.0
+    container_name: reporting-kibana
+    profiles: ["elk"]
+    environment:
+      ELASTICSEARCH_HOSTS: '["http://elasticsearch:9200"]'
+    ports:
+      - "5601:5601"
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+
+  filebeat:
+    image: docker.elastic.co/beats/filebeat:8.15.0
+    container_name: reporting-filebeat
+    profiles: ["elk"]
+    user: root
+    command: ["filebeat", "-e", "--strict.perms=false"]
+    volumes:
+      - ./observability/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+
+  grafana:
+    image: grafana/grafana:11.2.0
+    container_name: reporting-grafana
+    profiles: ["monitoring"]
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
+
+volumes:
+  es-data:
+  seaweedfs-data:
+  oracle-data:
+  rabbitmq-data:
+  redis-data:
+  report-output:
